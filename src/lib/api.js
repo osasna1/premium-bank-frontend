@@ -1,13 +1,21 @@
 import axios from "axios";
 
+/*
+  ✅ Use deployed backend first
+  Replace with your Render backend URL
+*/
 const baseURL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  import.meta.env.VITE_API_URL ||
+  "https://premium-bank-backend.onrender.com/api";
 
 export const api = axios.create({
   baseURL,
   timeout: 15000,
 });
 
+/*
+  ✅ Automatically attach JWT token
+*/
 api.interceptors.request.use((config) => {
   const token =
     localStorage.getItem("token") ||
