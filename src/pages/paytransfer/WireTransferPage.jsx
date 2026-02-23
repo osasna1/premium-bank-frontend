@@ -14,6 +14,9 @@ export default function WireTransferPage() {
   const [err, setErr] = useState("");
   const [otp, setOtp] = useState("");
 
+  // ✅ store request id if backend returns it (otpId/requestId)
+  const [otpRequestId, setOtpRequestId] = useState("");
+
   const [form, setForm] = useState({
     fromAccountId: "",
     amount: "",
@@ -51,30 +54,51 @@ export default function WireTransferPage() {
     [accounts, form.fromAccountId]
   );
 
-  // ✅ TRANSFER BUTTON CLICK (request OTP)
   const requestOtp = async () => {
     setErr("");
     setMsg("");
 
-    if (!form.fromAccountId) return setErr("Select account.");
-    if (!form.amount || Number(form.amount) <= 0)
-      return setErr("Enter valid amount.");
-    if (!form.beneficiaryName.trim()) return setErr("Enter beneficiary.");
-    if (!form.bankName.trim()) return setErr("Enter bank.");
-    if (!form.bankAccountNumber.trim())
-      return setErr("Enter account number.");
+    const amountNum = Number(form.amount);
 
-    alert("Contact your bank to request for OTP code.");
+    if (!form.fromAccountId) return setErr("Select account.");
+    if (!form.amount || Number.isNaN(amountNum) || amountNum <= 0)
+      return setErr("Enter valid amount.");
+    if (!form.beneficiaryName.trim()) return setErr("Enter beneficiary name.");
+    if (!form.bankName.trim()) return setErr("Enter bank name.");
+    if (!form.bankAccountNumber.trim())
+      return setErr("Enter bank account number.");
 
     try {
       setLoading(true);
 
-      // Backend sends OTP to admin email
-      await api.post("/transactions/wire/request-otp", form);
+      // ✅ Ensure backend gets clean payload + amount is a number
+      const payload = {
+        fromAccountId: form.fromAccountId,
+        amount: amountNum,
+        beneficiaryName: form.beneficiaryName.trim(),
+        bankName: form.bankName.trim(),
+        bankAccountNumber: form.bankAccountNumber.trim(),
+        description: (form.description || "Wire transfer").trim(),
+      };
+
+      // Debug (helps you confirm correct endpoint)
+      console.log("API baseURL:", api.defaults.baseURL);
+      console.log("Requesting OTP:", payload);
+
+      const res = await api.post("/transactions/wire/request-otp", payload);
+
+      // ✅ save id if backend returns it
+      const id =
+        res?.data?.otpId ||
+        res?.data?.requestId ||
+        res?.data?.id ||
+        "";
+      setOtpRequestId(id);
 
       setStep("otp");
       setMsg("OTP sent. Enter the approval code to complete transfer.");
     } catch (e) {
+      console.log("OTP request error:", e?.response?.status, e?.response?.data);
       setErr(e?.response?.data?.message || "Failed to request OTP.");
     } finally {
       setLoading(false);
@@ -85,18 +109,27 @@ export default function WireTransferPage() {
     setErr("");
     setMsg("");
 
-    if (!otp.trim()) return setErr("Enter approval code.");
+    if (!otp.trim()) return setErr("Enter approval code (OTP).");
 
     try {
       setLoading(true);
 
-      await api.post("/transactions/wire/confirm", { otp });
+      // ✅ Some backends need otp + requestId, some need otp only.
+      // We send both safely.
+      const body = {
+        otp: otp.trim(),
+        requestId: otpRequestId || undefined,
+        otpId: otpRequestId || undefined,
+      };
 
-      // ✅ show success message briefly, then go back to main accounts page
+      console.log("Confirming wire transfer:", body);
+
+      await api.post("/transactions/wire/confirm", body);
+
       setMsg("Wire transfer successful ✅ Redirecting...");
       setOtp("");
+      setOtpRequestId("");
 
-      // Optional: reset form
       setForm({
         fromAccountId: "",
         amount: "",
@@ -106,12 +139,11 @@ export default function WireTransferPage() {
         description: "Wire transfer",
       });
 
-      // ✅ Redirect after a short delay (so user sees success)
       setTimeout(() => {
-        // CHANGE THIS if your main page is /accounts instead of /dashboard
         navigate("/dashboard");
       }, 1200);
     } catch (e) {
+      console.log("Confirm error:", e?.response?.status, e?.response?.data);
       setErr(e?.response?.data?.message || "Transfer failed.");
     } finally {
       setLoading(false);
@@ -120,7 +152,6 @@ export default function WireTransferPage() {
 
   return (
     <div className="max-w-xl mx-auto p-6">
-      {/* ✅ Back button */}
       <button
         type="button"
         onClick={() => navigate(-1)}
@@ -138,13 +169,13 @@ export default function WireTransferPage() {
             </p>
           </div>
 
-          {/* Optional: Cancel OTP step */}
           {step === "otp" && (
             <button
               type="button"
               onClick={() => {
                 setStep("form");
                 setOtp("");
+                setOtpRequestId("");
                 setErr("");
                 setMsg("");
               }}
