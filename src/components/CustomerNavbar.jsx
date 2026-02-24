@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
+import Logo from "./Logo";
 
 export default function CustomerNavbar() {
   const navigate = useNavigate();
@@ -31,13 +32,10 @@ export default function CustomerNavbar() {
     navigate("/login");
   };
 
-  const itemClass =
-    "block w-full text-left px-4 py-2 text-sm hover:bg-slate-50";
+  const itemClass = "block w-full text-left px-4 py-2 text-sm hover:bg-slate-50";
 
   const activeClass = ({ isActive }) =>
-    isActive
-      ? "text-white font-semibold"
-      : "text-white/90 hover:text-white";
+    isActive ? "text-white font-semibold" : "text-white/90 hover:text-white";
 
   return (
     <div className="bg-pb-600">
@@ -45,9 +43,8 @@ export default function CustomerNavbar() {
         {/* Left */}
         <div className="flex items-center gap-5">
           <Link to="/dashboard" className="flex items-center gap-3 text-white">
-            <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center font-bold">
-              PB
-            </div>
+            {/* ✅ Logo */}
+            <Logo size={32} />
             <div className="font-semibold tracking-wide">Premium Bank</div>
           </Link>
 
@@ -76,9 +73,7 @@ export default function CustomerNavbar() {
                       navigate("/pay-transfer/transfers");
                     }}
                   >
-                    <div className="font-semibold text-slate-900">
-                      Account transfers
-                    </div>
+                    <div className="font-semibold text-slate-900">Account transfers</div>
                     <div className="text-xs text-slate-500">
                       Move money between your accounts
                     </div>
@@ -91,12 +86,8 @@ export default function CustomerNavbar() {
                       navigate("/pay-transfer/bills");
                     }}
                   >
-                    <div className="font-semibold text-slate-900">
-                      Bill payments
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      Pay a saved biller
-                    </div>
+                    <div className="font-semibold text-slate-900">Bill payments</div>
+                    <div className="text-xs text-slate-500">Pay a saved biller</div>
                   </button>
 
                   <button
@@ -106,12 +97,8 @@ export default function CustomerNavbar() {
                       navigate("/pay-transfer/etransfer");
                     }}
                   >
-                    <div className="font-semibold text-slate-900">
-                      Interac e-Transfer
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      Send money to someone
-                    </div>
+                    <div className="font-semibold text-slate-900">Interac e-Transfer</div>
+                    <div className="text-xs text-slate-500">Send money to someone</div>
                   </button>
 
                   {/* ✅ Wire Transfer */}
@@ -122,9 +109,7 @@ export default function CustomerNavbar() {
                       navigate("/pay-transfer/wire");
                     }}
                   >
-                    <div className="font-semibold text-slate-900">
-                      Wire transfer
-                    </div>
+                    <div className="font-semibold text-slate-900">Wire transfer</div>
                     <div className="text-xs text-slate-500">
                       Transfer to another bank account
                     </div>
@@ -141,9 +126,7 @@ export default function CustomerNavbar() {
 
         {/* Right */}
         <div className="flex items-center gap-3">
-          <span className="hidden md:block text-white/90 text-sm">
-            {user?.email || ""}
-          </span>
+          <span className="hidden md:block text-white/90 text-sm">{user?.email || ""}</span>
           <button
             onClick={logout}
             className="rounded-full bg-white/15 hover:bg-white/20 px-4 py-2 text-sm font-semibold text-white"
