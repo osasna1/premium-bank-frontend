@@ -27,6 +27,7 @@ export default function WireTransferPage() {
 
   const [form, setForm] = useState({
     fromAccountId: "",
+    routingNumber: "", // ✅ NEW
     amount: "",
     beneficiaryName: "",
     bankName: "",
@@ -71,12 +72,20 @@ export default function WireTransferPage() {
     setMsg("");
 
     if (!form.fromAccountId) return setErr("Select account.");
+
+    // ✅ Routing number is mandatory
+    const routingClean = String(form.routingNumber || "").replace(/\s+/g, "");
+    if (!routingClean) return setErr("Enter routing number.");
+    if (!/^\d+$/.test(routingClean)) return setErr("Routing number must be digits only.");
+    if (routingClean.length < 5 || routingClean.length > 12) {
+      return setErr("Routing number must be 5 to 12 digits.");
+    }
+
     if (!form.amount || Number.isNaN(amountNum) || amountNum <= 0)
       return setErr("Enter valid amount.");
     if (!form.beneficiaryName.trim()) return setErr("Enter beneficiary name.");
     if (!form.bankName.trim()) return setErr("Enter bank name.");
-    if (!form.bankAccountNumber.trim())
-      return setErr("Enter bank account number.");
+    if (!form.bankAccountNumber.trim()) return setErr("Enter bank account number.");
 
     try {
       setLoading(true);
@@ -84,6 +93,7 @@ export default function WireTransferPage() {
       // ✅ Ensure backend gets clean payload + amount is a number
       const payload = {
         fromAccountId: form.fromAccountId,
+        routingNumber: routingClean, // ✅ NEW
         amount: amountNum,
         beneficiaryName: form.beneficiaryName.trim(),
         bankName: form.bankName.trim(),
@@ -146,6 +156,7 @@ export default function WireTransferPage() {
 
       setForm({
         fromAccountId: "",
+        routingNumber: "", // ✅ NEW reset
         amount: "",
         beneficiaryName: "",
         bankName: "",
@@ -238,6 +249,20 @@ export default function WireTransferPage() {
               </div>
             )}
 
+            {/* ✅ NEW: Routing Number (MANDATORY) */}
+            <input
+              placeholder="Routing Number"
+              className="w-full border p-2 mb-3 rounded"
+              value={form.routingNumber}
+              onChange={(e) => {
+                // keep digits only (nice UX)
+                const v = e.target.value.replace(/[^\d]/g, "");
+                setForm({ ...form, routingNumber: v });
+              }}
+              disabled={loading}
+              inputMode="numeric"
+            />
+
             <input
               placeholder="Amount"
               className="w-full border p-2 mb-3 rounded"
@@ -313,6 +338,7 @@ export default function WireTransferPage() {
           `Total Amount: ${formatMoney(totalNum)}`,
           `Beneficiary: ${form.beneficiaryName || "-"}`,
           `Bank: ${form.bankName || "-"}`,
+          `Routing: ${form.routingNumber || "-"}`, // ✅ NEW
         ]}
         confirmText="Yes, transfer"
         cancelText="Cancel"
