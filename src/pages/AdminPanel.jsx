@@ -2,6 +2,23 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 
+function localDatetimeToISO(localValue) {
+  // localValue: "YYYY-MM-DDTHH:mm" (no timezone)
+  // Convert to a local Date safely, then to ISO.
+  if (!localValue) return undefined;
+
+  const [d, t] = String(localValue).split("T");
+  if (!d || !t) return undefined;
+
+  const [y, m, day] = d.split("-").map(Number);
+  const [hh, mm] = t.split(":").map(Number);
+
+  const dt = new Date(y, m - 1, day, hh, mm, 0, 0); // LOCAL time
+  if (Number.isNaN(dt.getTime())) return undefined;
+
+  return dt.toISOString();
+}
+
 export default function AdminPanel() {
   const navigate = useNavigate();
 
@@ -23,6 +40,9 @@ export default function AdminPanel() {
   const [chequingOpening, setChequingOpening] = useState(0);
   const [savingsOpening, setSavingsOpening] = useState(0);
 
+  // ✅ Backdate datetime (local input value) e.g. "2016-05-10T09:30"
+  const [postedAtLocal, setPostedAtLocal] = useState("");
+
   // ===== DATA =====
   const [customers, setCustomers] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -35,9 +55,8 @@ export default function AdminPanel() {
   const [txType, setTxType] = useState("");
   const [txDirection, setTxDirection] = useState("");
 
-  // ===== LOADING + ERRORS (SEPARATE) =====
+  // ===== LOADING + ERRORS =====
   const [loadingCreate, setLoadingCreate] = useState(false);
-
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [loadingTx, setLoadingTx] = useState(false);
@@ -48,7 +67,7 @@ export default function AdminPanel() {
   const [errCreate, setErrCreate] = useState("");
   const [msg, setMsg] = useState("");
 
-  // ✅ NEW: per-row update state
+  // ✅ per-row update state
   const [updatingUserId, setUpdatingUserId] = useState(null);
 
   const formatMoney = (n) =>
@@ -56,13 +75,21 @@ export default function AdminPanel() {
       Number(n || 0)
     );
 
+  // ✅ show backdated date in admin tx list too
+  const formatTxDate = (t) => {
+    const d = t?.postedAt || t?.createdAt;
+    if (!d) return "-";
+    const dt = new Date(d);
+    return Number.isNaN(dt.getTime()) ? "-" : dt.toLocaleString();
+  };
+
   const onLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login", { replace: true });
   };
 
-  // ✅ helper: supports MANY backend response shapes
+  // helper: supports MANY backend response shapes
   const unwrapList = (payload, keys = []) => {
     if (Array.isArray(payload)) return payload;
     for (const k of keys) {
@@ -79,8 +106,6 @@ export default function AdminPanel() {
     setErrCustomers("");
     try {
       const res = await api.get("/admin/users");
-      console.log("✅ /admin/users response:", res.data);
-
       const list = unwrapList(res.data, ["users", "customers"]);
       const mapped = list.map((c) => ({
         _id: c._id || c.id,
@@ -90,10 +115,8 @@ export default function AdminPanel() {
         createdAt: c.createdAt || c.created_at || null,
         role: c.role || "customer",
       }));
-
       setCustomers(mapped);
     } catch (e) {
-      console.log("❌ /admin/users error:", e?.response?.status, e?.response?.data || e?.message);
       setCustomers([]);
       setErrCustomers(e?.response?.data?.message || "Failed to load customers");
     } finally {
@@ -106,8 +129,6 @@ export default function AdminPanel() {
     setErrAccounts("");
     try {
       const res = await api.get("/admin/accounts");
-      console.log("✅ /admin/accounts response:", res.data);
-
       const list = unwrapList(res.data, ["accounts"]);
       const mapped = list.map((a) => ({
         _id: a._id || a.id,
@@ -119,10 +140,8 @@ export default function AdminPanel() {
         userEmail: a.userEmail || a.userId?.email || a.ownerEmail || "",
         userName: a.userName || a.userId?.fullName || a.userId?.name || a.ownerName || "",
       }));
-
       setAccounts(mapped);
     } catch (e) {
-      console.log("❌ /admin/accounts error:", e?.response?.status, e?.response?.data || e?.message);
       setAccounts([]);
       setErrAccounts(e?.response?.data?.message || "Failed to load accounts");
     } finally {
@@ -138,8 +157,6 @@ export default function AdminPanel() {
         params: { page, limit: 20, search: txSearch, type: txType, direction: txDirection },
       });
 
-      console.log("✅ /admin/transactions response:", res.data);
-
       const items = Array.isArray(res.data?.items)
         ? res.data.items
         : unwrapList(res.data, ["transactions"]);
@@ -147,6 +164,7 @@ export default function AdminPanel() {
       const mapped = items.map((t) => ({
         _id: t._id || t.id,
         createdAt: t.createdAt || null,
+        postedAt: t.postedAt || null,
         type: t.type || "",
         direction: t.direction || "",
         amount: t.amount ?? 0,
@@ -159,7 +177,6 @@ export default function AdminPanel() {
       setTx(mapped);
       setTxTotalPages(Number(res.data?.totalPages || 1));
     } catch (e) {
-      console.log("❌ /admin/transactions error:", e?.response?.status, e?.response?.data || e?.message);
       setTx([]);
       setTxTotalPages(1);
       setErrTx(e?.response?.data?.message || "Failed to load transactions");
@@ -168,7 +185,7 @@ export default function AdminPanel() {
     }
   };
 
-  // ✅ NEW: Toggle Active <-> Disabled
+  // Toggle Active <-> Disabled
   const toggleUserStatus = async (customer) => {
     const id = customer?._id;
     if (!id) return;
@@ -183,7 +200,6 @@ export default function AdminPanel() {
     try {
       await api.patch(`/admin/users/${id}/status`, { status: nextStatus });
 
-      // update UI immediately (no need to refetch, but you can if you want)
       setCustomers((prev) =>
         prev.map((c) => (String(c._id) === String(id) ? { ...c, status: nextStatus } : c))
       );
@@ -196,7 +212,7 @@ export default function AdminPanel() {
     }
   };
 
-  // ✅ IMPORTANT: load SEQUENTIALLY so errors don’t get overwritten
+  // load SEQUENTIALLY
   useEffect(() => {
     (async () => {
       await loadCustomers();
@@ -212,6 +228,15 @@ export default function AdminPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txPage]);
 
+  const applyTxFilters = () => {
+    setTxPage(1);
+    loadTransactions(1);
+  };
+
+  // ✅ Enable backdate only if opening balance > 0
+  const anyOpeningAmount =
+    (chequing ? Number(chequingOpening || 0) : 0) + (savings ? Number(savingsOpening || 0) : 0);
+
   // ===== CREATE CUSTOMER =====
   const createCustomer = async (e) => {
     e.preventDefault();
@@ -224,6 +249,9 @@ export default function AdminPanel() {
     if (password !== confirm) return setErrCreate("Passwords do not match");
     if (!chequing && !savings) return setErrCreate("Select at least one account type");
 
+    // ✅ Convert datetime-local to ISO for backend (safe local->ISO)
+    const openingDateISO = postedAtLocal ? localDatetimeToISO(postedAtLocal) : undefined;
+
     setLoadingCreate(true);
     try {
       await api.post("/admin/create-customer", {
@@ -234,6 +262,9 @@ export default function AdminPanel() {
         createSavings: savings,
         chequingOpening: Number(chequingOpening || 0),
         savingsOpening: Number(savingsOpening || 0),
+
+        // ✅ NEW preferred field (backend also accepts old postedAt)
+        ...(openingDateISO ? { openingDate: openingDateISO } : {}),
       });
 
       setMsg("Customer created successfully ✅");
@@ -243,6 +274,7 @@ export default function AdminPanel() {
       setConfirm("");
       setChequingOpening(0);
       setSavingsOpening(0);
+      setPostedAtLocal("");
 
       await loadCustomers();
       await loadAccounts();
@@ -255,11 +287,6 @@ export default function AdminPanel() {
     }
   };
 
-  const applyTxFilters = () => {
-    setTxPage(1);
-    loadTransactions(1);
-  };
-
   return (
     <div className="min-h-screen bg-slate-50">
       {/* TOP BAR */}
@@ -269,6 +296,11 @@ export default function AdminPanel() {
             PB
           </div>
           <div className="font-semibold tracking-wide">Premium Bank — Admin</div>
+
+          {/* ✅ DEBUG BADGE so you know this file is showing */}
+          <span className="ml-2 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
+            BACKDATE ENABLED ✅
+          </span>
         </div>
 
         <div className="flex items-center gap-3 text-white/90">
@@ -390,6 +422,32 @@ export default function AdminPanel() {
               />
             </div>
 
+            {/* ✅ BACKDATE FIELD */}
+            <div className="md:col-span-2">
+              <label className="text-sm font-semibold">
+                Opening Deposit Date/Time (Backdate){" "}
+                <span className="text-slate-400 font-normal">(optional)</span>
+              </label>
+
+              <input
+                className="mt-1 w-full border rounded-xl p-3"
+                value={postedAtLocal}
+                onChange={(e) => setPostedAtLocal(e.target.value)}
+                type="datetime-local"
+                disabled={anyOpeningAmount <= 0}
+              />
+
+              {anyOpeningAmount <= 0 ? (
+                <p className="text-xs text-slate-500 mt-1">
+                  Add an opening balance above to enable backdating.
+                </p>
+              ) : (
+                <p className="text-xs text-slate-500 mt-1">
+                  Leave empty to use today’s date/time.
+                </p>
+              )}
+            </div>
+
             <div className="md:col-span-2">
               <button
                 disabled={loadingCreate}
@@ -431,9 +489,17 @@ export default function AdminPanel() {
               </thead>
               <tbody>
                 {loadingCustomers ? (
-                  <tr><td className="p-3" colSpan="4">Loading...</td></tr>
+                  <tr>
+                    <td className="p-3" colSpan="4">
+                      Loading...
+                    </td>
+                  </tr>
                 ) : customers.length === 0 ? (
-                  <tr><td className="p-3" colSpan="4">No users found.</td></tr>
+                  <tr>
+                    <td className="p-3" colSpan="4">
+                      No users found.
+                    </td>
+                  </tr>
                 ) : (
                   customers.map((c) => {
                     const status = String(c.status || "active").toLowerCase();
@@ -445,7 +511,6 @@ export default function AdminPanel() {
                         <td className="p-3">{c.fullName || "—"}</td>
                         <td className="p-3">{c.email}</td>
 
-                        {/* ✅ UPDATED: Status + Toggle Button */}
                         <td className="p-3">
                           <div className="flex items-center gap-3">
                             <span
@@ -470,11 +535,7 @@ export default function AdminPanel() {
                               }
                               title={isActive ? "Disable this user" : "Activate this user"}
                             >
-                              {isUpdating
-                                ? "Updating..."
-                                : isActive
-                                ? "Disable"
-                                : "Activate"}
+                              {isUpdating ? "Updating..." : isActive ? "Disable" : "Activate"}
                             </button>
                           </div>
                         </td>
@@ -522,9 +583,17 @@ export default function AdminPanel() {
               </thead>
               <tbody>
                 {loadingAccounts ? (
-                  <tr><td className="p-3" colSpan="5">Loading...</td></tr>
+                  <tr>
+                    <td className="p-3" colSpan="5">
+                      Loading...
+                    </td>
+                  </tr>
                 ) : accounts.length === 0 ? (
-                  <tr><td className="p-3" colSpan="5">No accounts found.</td></tr>
+                  <tr>
+                    <td className="p-3" colSpan="5">
+                      No accounts found.
+                    </td>
+                  </tr>
                 ) : (
                   accounts.map((a) => (
                     <tr key={a._id} className="border-t">
@@ -566,19 +635,31 @@ export default function AdminPanel() {
               value={txSearch}
               onChange={(e) => setTxSearch(e.target.value)}
             />
-            <select className="border rounded-xl p-2" value={txType} onChange={(e) => setTxType(e.target.value)}>
+            <select
+              className="border rounded-xl p-2"
+              value={txType}
+              onChange={(e) => setTxType(e.target.value)}
+            >
               <option value="">All Types</option>
               <option value="deposit">Deposit</option>
               <option value="withdrawal">Withdrawal</option>
               <option value="transfer">Transfer</option>
               <option value="wire">Wire</option>
+              <option value="bill">Bill</option>
             </select>
-            <select className="border rounded-xl p-2" value={txDirection} onChange={(e) => setTxDirection(e.target.value)}>
+            <select
+              className="border rounded-xl p-2"
+              value={txDirection}
+              onChange={(e) => setTxDirection(e.target.value)}
+            >
               <option value="">All Directions</option>
               <option value="credit">Credit</option>
               <option value="debit">Debit</option>
             </select>
-            <button onClick={applyTxFilters} className="rounded-xl bg-pb-600 text-white p-2 font-semibold hover:bg-pb-700">
+            <button
+              onClick={applyTxFilters}
+              className="rounded-xl bg-pb-600 text-white p-2 font-semibold hover:bg-pb-700"
+            >
               Apply
             </button>
           </div>
@@ -599,13 +680,21 @@ export default function AdminPanel() {
               </thead>
               <tbody>
                 {loadingTx ? (
-                  <tr><td className="p-3" colSpan="8">Loading...</td></tr>
+                  <tr>
+                    <td className="p-3" colSpan="8">
+                      Loading...
+                    </td>
+                  </tr>
                 ) : tx.length === 0 ? (
-                  <tr><td className="p-3" colSpan="8">No transactions found.</td></tr>
+                  <tr>
+                    <td className="p-3" colSpan="8">
+                      No transactions found.
+                    </td>
+                  </tr>
                 ) : (
                   tx.map((t) => (
                     <tr key={t._id} className="border-t">
-                      <td className="p-3">{t.createdAt ? new Date(t.createdAt).toLocaleString() : "-"}</td>
+                      <td className="p-3">{formatTxDate(t)}</td>
                       <td className="p-3">{t.userEmail || "-"}</td>
                       <td className="p-3 capitalize">{t.type}</td>
                       <td className="p-3 capitalize">{t.direction}</td>
@@ -621,13 +710,21 @@ export default function AdminPanel() {
           </div>
 
           <div className="flex items-center justify-between mt-4">
-            <button className="border rounded-xl px-4 py-2 disabled:opacity-40" disabled={txPage <= 1} onClick={() => setTxPage((p) => p - 1)}>
+            <button
+              className="border rounded-xl px-4 py-2 disabled:opacity-40"
+              disabled={txPage <= 1}
+              onClick={() => setTxPage((p) => p - 1)}
+            >
               Prev
             </button>
             <div className="text-sm">
               Page <b>{txPage}</b> of <b>{txTotalPages}</b>
             </div>
-            <button className="border rounded-xl px-4 py-2 disabled:opacity-40" disabled={txPage >= txTotalPages} onClick={() => setTxPage((p) => p + 1)}>
+            <button
+              className="border rounded-xl px-4 py-2 disabled:opacity-40"
+              disabled={txPage >= txTotalPages}
+              onClick={() => setTxPage((p) => p + 1)}
+            >
               Next
             </button>
           </div>

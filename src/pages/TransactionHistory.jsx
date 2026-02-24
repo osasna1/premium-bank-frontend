@@ -15,7 +15,6 @@ export default function TransactionHistory() {
   }, []);
 
   const isAdmin = (user?.role || "").toLowerCase() === "admin";
-
   const accountId = params.get("accountId") || "";
 
   const [items, setItems] = useState([]);
@@ -30,45 +29,39 @@ export default function TransactionHistory() {
     return s.length > 12 ? `${s.slice(0, 6)}...${s.slice(-4)}` : s;
   };
 
-  // ✅ supports:
-  // - t.accountId as populated object
-  // - t.accountNumber as string (rich admin endpoint)
-  // - fallback to short id
   const accountDisplay = (t) => {
-    // If admin endpoint returns accountNumber directly
     if (t?.accountNumber) return t.accountNumber;
-
-    // If populated account object
     if (t?.accountId && typeof t.accountId === "object") {
       return t.accountId.accountNumber || shortId(t.accountId);
     }
-
-    // If just id
     return shortId(t?.accountId);
   };
 
   const relatedAccountDisplay = (t) => {
     if (t?.relatedAccountNumber) return t.relatedAccountNumber;
-
     if (t?.relatedAccountId && typeof t.relatedAccountId === "object") {
       return t.relatedAccountId.accountNumber || shortId(t.relatedAccountId);
     }
-
     return shortId(t?.relatedAccountId);
   };
 
-  // ✅ supports:
-  // - t.userId as populated object
-  // - t.userEmail as string (rich admin endpoint)
-  // - fallback to short id
   const userDisplay = (t) => {
     if (t?.userEmail) return t.userEmail;
-
     if (t?.userId && typeof t.userId === "object") {
       return t.userId.email || shortId(t.userId);
     }
-
     return shortId(t?.userId);
+  };
+
+  // ✅ PROPER DATE FORMAT (postedAt first, fallback to createdAt)
+  const formatTxDate = (t) => {
+    const dateValue = t?.postedAt || t?.createdAt;
+    if (!dateValue) return "—";
+
+    const d = new Date(dateValue);
+    if (Number.isNaN(d.getTime())) return "—";
+
+    return d.toLocaleString();
   };
 
   const load = async () => {
@@ -165,9 +158,7 @@ export default function TransactionHistory() {
               ) : (
                 items.map((t) => (
                   <tr key={t._id} className="border-t">
-                    <td className="p-3">
-                      {t.createdAt ? new Date(t.createdAt).toLocaleString() : "—"}
-                    </td>
+                    <td className="p-3">{formatTxDate(t)}</td>
 
                     <td className="p-3 capitalize">{t.type || "—"}</td>
 
