@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../lib/api";
+import ConfirmModal from "../../components/ConfirmModal";
 
 export default function WireTransferPage() {
   const navigate = useNavigate();
@@ -16,6 +17,13 @@ export default function WireTransferPage() {
 
   // ✅ store request id if backend returns it (otpId/requestId)
   const [otpRequestId, setOtpRequestId] = useState("");
+
+  // ✅ Confirmation modal state
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+
+  // ✅ store pending confirm body (otp + request id)
+  const [pendingConfirmBody, setPendingConfirmBody] = useState(null);
 
   const [form, setForm] = useState({
     fromAccountId: "",
@@ -33,6 +41,10 @@ export default function WireTransferPage() {
       currency: "CAD",
     }).format(n);
   };
+
+  const amountNum = Number(form.amount || 0);
+  const feesNum = 0; // you can change later if you add fees
+  const totalNum = amountNum + feesNum;
 
   // Load accounts
   useEffect(() => {
@@ -58,8 +70,6 @@ export default function WireTransferPage() {
     setErr("");
     setMsg("");
 
-    const amountNum = Number(form.amount);
-
     if (!form.fromAccountId) return setErr("Select account.");
     if (!form.amount || Number.isNaN(amountNum) || amountNum <= 0)
       return setErr("Enter valid amount.");
@@ -81,54 +91,58 @@ export default function WireTransferPage() {
         description: (form.description || "Wire transfer").trim(),
       };
 
-      // Debug (helps you confirm correct endpoint)
-      console.log("API baseURL:", api.defaults.baseURL);
-      console.log("Requesting OTP:", payload);
-
       const res = await api.post("/transactions/wire/request-otp", payload);
 
       // ✅ save id if backend returns it
-      const id =
-        res?.data?.otpId ||
-        res?.data?.requestId ||
-        res?.data?.id ||
-        "";
+      const id = res?.data?.otpId || res?.data?.requestId || res?.data?.id || "";
       setOtpRequestId(id);
 
       setStep("otp");
-      setMsg("OTP sent. Enter the approval code to complete transfer.");
+      setMsg("OTP sent. Enter the approval code to continue.");
     } catch (e) {
-      console.log("OTP request error:", e?.response?.status, e?.response?.data);
       setErr(e?.response?.data?.message || "Failed to request OTP.");
     } finally {
       setLoading(false);
     }
   };
 
-  const confirmWire = async () => {
+  // ✅ Step: User enters OTP -> OPEN CONFIRMATION MODAL (do not process yet)
+  const openConfirmModal = () => {
     setErr("");
     setMsg("");
 
     if (!otp.trim()) return setErr("Enter approval code (OTP).");
 
+    const body = {
+      otp: otp.trim(),
+      requestId: otpRequestId || undefined,
+      otpId: otpRequestId || undefined,
+    };
+
+    setPendingConfirmBody(body);
+    setShowConfirm(true);
+  };
+
+  // ✅ Step: user clicks YES in modal -> now we process transfer
+  const confirmWireNow = async () => {
+    setErr("");
+    setMsg("");
+
+    if (!pendingConfirmBody) {
+      setShowConfirm(false);
+      return;
+    }
+
     try {
-      setLoading(true);
+      setConfirmLoading(true);
 
-      // ✅ Some backends need otp + requestId, some need otp only.
-      // We send both safely.
-      const body = {
-        otp: otp.trim(),
-        requestId: otpRequestId || undefined,
-        otpId: otpRequestId || undefined,
-      };
-
-      console.log("Confirming wire transfer:", body);
-
-      await api.post("/transactions/wire/confirm", body);
+      await api.post("/transactions/wire/confirm", pendingConfirmBody);
 
       setMsg("Wire transfer successful ✅ Redirecting...");
       setOtp("");
       setOtpRequestId("");
+      setPendingConfirmBody(null);
+      setShowConfirm(false);
 
       setForm({
         fromAccountId: "",
@@ -143,10 +157,10 @@ export default function WireTransferPage() {
         navigate("/dashboard");
       }, 1200);
     } catch (e) {
-      console.log("Confirm error:", e?.response?.status, e?.response?.data);
       setErr(e?.response?.data?.message || "Transfer failed.");
+      setShowConfirm(false);
     } finally {
-      setLoading(false);
+      setConfirmLoading(false);
     }
   };
 
@@ -176,11 +190,13 @@ export default function WireTransferPage() {
                 setStep("form");
                 setOtp("");
                 setOtpRequestId("");
+                setPendingConfirmBody(null);
+                setShowConfirm(false);
                 setErr("");
                 setMsg("");
               }}
               className="text-sm font-semibold text-slate-600 hover:underline"
-              disabled={loading}
+              disabled={loading || confirmLoading}
               title="Go back to form"
             >
               Cancel
@@ -205,9 +221,7 @@ export default function WireTransferPage() {
             <select
               className="w-full border p-2 mb-3 rounded"
               value={form.fromAccountId}
-              onChange={(e) =>
-                setForm({ ...form, fromAccountId: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, fromAccountId: e.target.value })}
               disabled={loadingAccounts || loading}
             >
               <option value="">Select account</option>
@@ -237,9 +251,7 @@ export default function WireTransferPage() {
               placeholder="Beneficiary Name"
               className="w-full border p-2 mb-3 rounded"
               value={form.beneficiaryName}
-              onChange={(e) =>
-                setForm({ ...form, beneficiaryName: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, beneficiaryName: e.target.value })}
               disabled={loading}
             />
 
@@ -255,9 +267,7 @@ export default function WireTransferPage() {
               placeholder="Account Number"
               className="w-full border p-2 mb-4 rounded"
               value={form.bankAccountNumber}
-              onChange={(e) =>
-                setForm({ ...form, bankAccountNumber: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, bankAccountNumber: e.target.value })}
               disabled={loading}
             />
 
@@ -277,21 +287,42 @@ export default function WireTransferPage() {
               className="w-full border p-2 mb-4 rounded"
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
-              disabled={loading}
+              disabled={loading || confirmLoading}
               inputMode="numeric"
             />
 
             <button
               type="button"
-              onClick={confirmWire}
-              disabled={loading}
+              onClick={openConfirmModal}
+              disabled={loading || confirmLoading}
               className="bg-blue-600 text-white px-4 py-2 rounded w-full hover:bg-blue-700 disabled:opacity-60"
             >
-              {loading ? "Confirming..." : "Confirm Transfer"}
+              {loading || confirmLoading ? "Processing..." : "Continue"}
             </button>
           </>
         )}
       </div>
+
+      {/* ✅ Blue confirmation modal */}
+      <ConfirmModal
+        open={showConfirm}
+        title="Are you sure you want to transfer?"
+        lines={[
+          `Transaction Amount: ${formatMoney(amountNum)}`,
+          `Total Fees: ${formatMoney(feesNum)}`,
+          `Total Amount: ${formatMoney(totalNum)}`,
+          `Beneficiary: ${form.beneficiaryName || "-"}`,
+          `Bank: ${form.bankName || "-"}`,
+        ]}
+        confirmText="Yes, transfer"
+        cancelText="Cancel"
+        loading={confirmLoading}
+        onCancel={() => {
+          setShowConfirm(false);
+          setPendingConfirmBody(null);
+        }}
+        onConfirm={confirmWireNow}
+      />
     </div>
   );
 }
