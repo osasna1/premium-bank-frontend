@@ -1,49 +1,10 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { api } from "../lib/api";
+import { useNavigate } from "react-router-dom";
 
-export default function Register() {
+export default function RegisterOnlineBanking() {
   const navigate = useNavigate();
 
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-
-  const onRegister = async (e) => {
-    e.preventDefault();
-    setErr("");
-
-    // ✅ Frontend validation (so you never send empty values)
-    if (!fullName.trim() || !email.trim() || !password.trim()) {
-      setErr("fullName, email, password are required");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // ✅ Send BOTH "fullName" and "name" to match any backend
-      const payload = {
-        fullName: fullName.trim(),
-        name: fullName.trim(),
-        email: email.trim().toLowerCase(),
-        password: password.trim(),
-      };
-
-      const res = await api.post("/auth/register", payload);
-
-      // ✅ If backend returns token/user, save it. If not, just go login.
-      if (res?.data?.token) localStorage.setItem("token", res.data.token);
-      if (res?.data?.user) localStorage.setItem("user", JSON.stringify(res.data.user));
-
-      navigate("/login");
-    } catch (e2) {
-      setErr(e2?.response?.data?.message || "Registration failed");
-    } finally {
-      setLoading(false);
-    }
+  const go = (type) => {
+    navigate(`/register-online-banking/card?type=${type}`);
   };
 
   return (
@@ -58,65 +19,99 @@ export default function Register() {
         </div>
       </div>
 
-      {/* Card */}
-      <div className="flex justify-center items-center mt-16 px-4">
-        <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-slate-200">
-          <h1 className="text-2xl font-bold mb-2">Create account</h1>
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+          {/* Left: Main */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+            <h1 className="text-4xl font-extrabold text-slate-900">
+              Register for online banking
+            </h1>
 
-          {err && (
-            <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl mb-4 text-sm">
-              {err}
-            </div>
-          )}
+            <p className="text-slate-600 mt-4">
+              Get started with online banking in a few quick steps:
+            </p>
 
-          <form onSubmit={onRegister} className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-slate-700">Full name</label>
-              <input
-                type="text"
-                className="mt-1 w-full border rounded-xl p-3"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Full Name"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-slate-700">Email</label>
-              <input
-                type="email"
-                className="mt-1 w-full border rounded-xl p-3"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter email or Card number"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-slate-700">Password</label>
-              <input
-                type="password"
-                className="mt-1 w-full border rounded-xl p-3"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="********"
-              />
-            </div>
+            <ul className="mt-6 space-y-3 text-slate-700">
+              <li className="flex gap-3">
+                <span className="font-bold">▢</span>
+                <span>Enter your debit or credit card number</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-bold">🔒</span>
+                <span>Confirm your personal information and create a password</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-bold">👍</span>
+                <span>Get started with online and mobile banking</span>
+              </li>
+            </ul>
 
             <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-pb-600 text-white rounded-full py-3 font-semibold hover:bg-pb-700 disabled:opacity-60"
+              onClick={() => go("debit")}
+              className="mt-8 rounded-full bg-pb-600 text-white px-8 py-3 font-semibold hover:bg-pb-700"
             >
-              {loading ? "Creating..." : "CREATE ACCOUNT"}
+              CONTINUE
             </button>
-          </form>
 
-          <div className="text-center mt-5">
-            <Link to="/login" className="text-sm text-pb-700 hover:underline">
-              Back to Sign in
-            </Link>
+            <p className="text-xs text-slate-500 mt-6">
+              By continuing, you agree to our Electronic Banking Services Agreement.
+            </p>
           </div>
+
+          {/* Right: Cards */}
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+              <h2 className="text-lg font-bold text-slate-900">
+                Register a new card for online banking
+              </h2>
+
+              <div className="mt-4 space-y-2">
+                <button
+                  onClick={() => go("debit")}
+                  className="w-full text-left font-semibold text-pb-700 hover:underline"
+                >
+                  DEBIT CARD
+                </button>
+
+                <div className="text-slate-400 text-sm">or</div>
+
+                <button
+                  onClick={() => go("credit")}
+                  className="w-full text-left font-semibold text-pb-700 hover:underline"
+                >
+                  CREDIT CARD
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+              <div className="flex items-start gap-3">
+                <div className="text-lg">🔒</div>
+                <div>
+                  <h3 className="font-bold text-slate-900">
+                    Your security always comes first
+                  </h3>
+                  <p className="text-slate-600 mt-1">
+                    We use advanced banking security technology to keep your money and
+                    personal information safe.
+                  </p>
+                  <button className="mt-3 text-pb-700 font-semibold hover:underline">
+                    Learn more about how we protect you →
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Small helper link */}
+        <div className="mt-6">
+          <button
+            onClick={() => navigate("/login")}
+            className="text-sm text-slate-600 hover:underline"
+          >
+            Back to Sign in
+          </button>
         </div>
       </div>
     </div>

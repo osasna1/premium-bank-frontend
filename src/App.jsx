@@ -13,6 +13,10 @@ import ResetPassword from "./pages/ResetPassword";
 
 import CustomerLayout from "./layouts/CustomerLayout";
 
+// ✅ NEW: Online banking registration pages
+import RegisterOnlineBanking from "./pages/RegisterOnlineBanking";
+import RegisterOnlineBankingCard from "./pages/RegisterOnlineBankingCard";
+
 // Pay & Transfer pages (make sure these files exist exactly)
 import TransfersPage from "./pages/paytransfer/TransfersPage";
 import BillsPage from "./pages/paytransfer/BillsPage";
@@ -46,11 +50,7 @@ function AdminRoute({ children }) {
 function HomeRedirect() {
   const { token, isAdmin } = getAuth();
   if (!token) return <Navigate to="/login" replace />;
-  return isAdmin ? (
-    <Navigate to="/admin" replace />
-  ) : (
-    <Navigate to="/dashboard" replace />
-  );
+  return isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/dashboard" replace />;
 }
 
 export default function App() {
@@ -62,6 +62,10 @@ export default function App() {
         {/* Public */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+
+        {/* ✅ NEW: BMO-style registration flow */}
+        <Route path="/register-online-banking" element={<RegisterOnlineBanking />} />
+        <Route path="/register-online-banking/card" element={<RegisterOnlineBankingCard />} />
 
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/verify-otp" element={<VerifyOtp />} />
