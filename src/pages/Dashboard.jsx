@@ -95,7 +95,6 @@ function PayTransferMenu({ className = "", buttonClassName = "" }) {
             </div>
           </button>
 
-          {/* ✅ removed (demo) */}
           <button
             type="button"
             onClick={() => go("/pay-transfer/bills")}
@@ -108,7 +107,6 @@ function PayTransferMenu({ className = "", buttonClassName = "" }) {
             <div className="text-xs text-slate-500">Pay a saved biller</div>
           </button>
 
-          {/* ✅ removed (demo) */}
           <button
             type="button"
             onClick={() => go("/pay-transfer/etransfer")}
@@ -157,6 +155,13 @@ export default function Dashboard() {
   const [accounts, setAccounts] = useState([]);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [err, setErr] = useState("");
+
+  // ✅ display label helper (CHEQUING -> CHECKING)
+  const displayAccountType = (type) => {
+    const t = String(type || "").toLowerCase();
+    if (t === "chequing") return "CHECKING";
+    return t ? t.toUpperCase() : "";
+  };
 
   const formatMoney = (value) => {
     const n = Number(value || 0);
@@ -267,7 +272,7 @@ export default function Dashboard() {
                   Bank accounts
                 </h2>
                 <p className="text-sm text-slate-600 mt-1">
-                  Chequing and savings accounts.
+                  Checking and savings accounts.
                 </p>
 
                 <div className="mt-4 border-t border-slate-200" />
@@ -287,7 +292,7 @@ export default function Dashboard() {
                       >
                         <div>
                           <div className="font-semibold text-slate-900">
-                            {(acc.type || "").toUpperCase()}
+                            {displayAccountType(acc.type)}
                           </div>
                           <div className="text-xs text-slate-500 mt-1">
                             {acc.accountNumber}
@@ -305,7 +310,6 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                {/* ✅ Bottom actions: Pay & Transfer now opens dropdown menu */}
                 <div className="mt-5 flex gap-3">
                   <PayTransferMenu
                     buttonClassName="rounded-full bg-pb-600 text-white px-5 py-2 text-sm font-semibold hover:bg-pb-700"
@@ -323,7 +327,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Quick links */}
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
           <p className="text-sm font-semibold text-slate-900">Quick links</p>
 
