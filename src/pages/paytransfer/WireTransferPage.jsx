@@ -27,20 +27,13 @@ export default function WireTransferPage() {
 
   const [form, setForm] = useState({
     fromAccountId: "",
-    routingNumber: "", // ✅ NEW
+    routingNumber: "",
     amount: "",
     beneficiaryName: "",
     bankName: "",
     bankAccountNumber: "",
     description: "Wire transfer",
   });
-
-  // ✅ display label helper (chequing -> checking)
-  const displayType = (type) => {
-    const t = String(type || "").toLowerCase();
-    if (t === "chequing") return "checking";
-    return t;
-  };
 
   const formatMoney = (value) => {
     const n = Number(value || 0);
@@ -98,7 +91,7 @@ export default function WireTransferPage() {
 
       const payload = {
         fromAccountId: form.fromAccountId,
-        routingNumber: routingClean, // ✅ send cleaned digits
+        routingNumber: routingClean,
         amount: amountNum,
         beneficiaryName: form.beneficiaryName.trim(),
         bankName: form.bankName.trim(),
@@ -118,6 +111,17 @@ export default function WireTransferPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ✅ NEW: Show popup first, then send OTP to admin after OK
+  const handleTransferClick = async () => {
+    if (loading || loadingAccounts) return;
+
+    // popup like your example
+    window.alert("Contact your bank to request for OTP code.");
+
+    // after OK, request OTP (sends to admin)
+    await requestOtp();
   };
 
   const openConfirmModal = () => {
@@ -232,10 +236,9 @@ export default function WireTransferPage() {
               disabled={loadingAccounts || loading}
             >
               <option value="">Select account</option>
-
               {accounts.map((a) => (
                 <option key={a._id} value={a._id}>
-                  {displayType(a.type)} • {a.accountNumber} • {formatMoney(a.balance)}
+                  {a.type} • {a.accountNumber} • {formatMoney(a.balance)}
                 </option>
               ))}
             </select>
@@ -293,7 +296,7 @@ export default function WireTransferPage() {
 
             <button
               type="button"
-              onClick={requestOtp}
+              onClick={handleTransferClick}
               disabled={loading || loadingAccounts}
               className="bg-blue-600 text-white px-4 py-2 rounded w-full hover:bg-blue-700 disabled:opacity-60"
             >
