@@ -100,6 +100,13 @@ export default function AdminPanel() {
     return [];
   };
 
+  // ✅ UI helper: show CHECKING instead of chequing (display only)
+  const displayAccountType = (type) => {
+    const t = String(type || "").toLowerCase();
+    if (t === "chequing") return "CHECKING";
+    return String(type || "").toUpperCase();
+  };
+
   // ===== LOADERS =====
   const loadCustomers = async () => {
     setLoadingCustomers(true);
@@ -392,7 +399,8 @@ export default function AdminPanel() {
             <div className="md:col-span-2 flex items-center gap-6">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={chequing} onChange={() => setChequing((v) => !v)} />
-                Chequing
+                {/* ✅ UI only */}
+                Checking
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={savings} onChange={() => setSavings((v) => !v)} />
@@ -401,7 +409,7 @@ export default function AdminPanel() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold">Chequing Opening Balance</label>
+              <label className="text-sm font-semibold">Checking Opening Balance</label>
               <input
                 className="mt-1 w-full border rounded-xl p-3"
                 value={chequingOpening}
@@ -442,9 +450,7 @@ export default function AdminPanel() {
                   Add an opening balance above to enable backdating.
                 </p>
               ) : (
-                <p className="text-xs text-slate-500 mt-1">
-                  Leave empty to use today’s date/time.
-                </p>
+                <p className="text-xs text-slate-500 mt-1">Leave empty to use today’s date/time.</p>
               )}
             </div>
 
@@ -600,7 +606,7 @@ export default function AdminPanel() {
                       <td className="p-3">{a.userName || "—"}</td>
                       <td className="p-3">{a.userEmail || "—"}</td>
                       <td className="p-3 font-mono">{a.accountNumber}</td>
-                      <td className="p-3 uppercase">{a.type}</td>
+                      <td className="p-3">{displayAccountType(a.type)}</td>
                       <td className="p-3 font-semibold">{formatMoney(a.balance)}</td>
                     </tr>
                   ))
