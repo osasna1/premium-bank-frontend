@@ -15,15 +15,16 @@ export default function WireTransferPage() {
   const [err, setErr] = useState("");
   const [otp, setOtp] = useState("");
 
-  // ✅ store request id if backend returns it (otpId/requestId)
   const [otpRequestId, setOtpRequestId] = useState("");
 
-  // ✅ Confirmation modal state
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
 
-  // ✅ store pending confirm body (otp + request id)
   const [pendingConfirmBody, setPendingConfirmBody] = useState(null);
+
+  // ✅ NEW (ONLY for transfer successful popup)
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successText, setSuccessText] = useState("Transfer successful ✅");
 
   const [form, setForm] = useState({
     fromAccountId: "",
@@ -72,10 +73,10 @@ export default function WireTransferPage() {
 
     if (!form.fromAccountId) return setErr("Select account.");
 
-    // ✅ Routing number is mandatory (validate on submit)
     const routingClean = String(form.routingNumber || "").replace(/[\s-]/g, "");
     if (!routingClean) return setErr("Enter routing number.");
-    if (!/^\d+$/.test(routingClean)) return setErr("Routing number must be digits only.");
+    if (!/^\d+$/.test(routingClean))
+      return setErr("Routing number must be digits only.");
     if (routingClean.length < 5 || routingClean.length > 12) {
       return setErr("Routing number must be 5 to 12 digits.");
     }
@@ -84,7 +85,8 @@ export default function WireTransferPage() {
       return setErr("Enter valid amount.");
     if (!form.beneficiaryName.trim()) return setErr("Enter beneficiary name.");
     if (!form.bankName.trim()) return setErr("Enter bank name.");
-    if (!form.bankAccountNumber.trim()) return setErr("Enter bank account number.");
+    if (!form.bankAccountNumber.trim())
+      return setErr("Enter bank account number.");
 
     try {
       setLoading(true);
@@ -111,17 +113,6 @@ export default function WireTransferPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // ✅ NEW: Show popup first, then send OTP to admin after OK
-  const handleTransferClick = async () => {
-    if (loading || loadingAccounts) return;
-
-    // popup like your example
-    window.alert("Contact your bank to request for OTP code.");
-
-    // after OK, request OTP (sends to admin)
-    await requestOtp();
   };
 
   const openConfirmModal = () => {
@@ -154,11 +145,15 @@ export default function WireTransferPage() {
 
       await api.post("/transactions/wire/confirm", pendingConfirmBody);
 
-      setMsg("Wire transfer successful ✅ Redirecting...");
+      // ✅ ONLY CHANGE: show success popup, no auto redirect
+      setShowConfirm(false);
+      setSuccessText("Transfer successful ✅");
+      setShowSuccess(true);
+
+      // keep your existing resets (same as before)
       setOtp("");
       setOtpRequestId("");
       setPendingConfirmBody(null);
-      setShowConfirm(false);
 
       setForm({
         fromAccountId: "",
@@ -170,15 +165,19 @@ export default function WireTransferPage() {
         description: "Wire transfer",
       });
 
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 1200);
+      setStep("form");
     } catch (e) {
       setErr(e?.response?.data?.message || "Transfer failed.");
       setShowConfirm(false);
     } finally {
       setConfirmLoading(false);
     }
+  };
+
+  // ✅ OK button handler -> redirect to accounts page
+  const onSuccessOk = () => {
+    setShowSuccess(false);
+    navigate("/dashboard");
   };
 
   return (
@@ -222,17 +221,25 @@ export default function WireTransferPage() {
         </div>
 
         {msg && (
-          <div className="mt-4 mb-3 p-3 bg-green-50 text-green-700 rounded">{msg}</div>
+          <div className="mt-4 mb-3 p-3 bg-green-50 text-green-700 rounded">
+            {msg}
+          </div>
         )}
 
-        {err && <div className="mt-4 mb-3 p-3 bg-red-50 text-red-700 rounded">{err}</div>}
+        {err && (
+          <div className="mt-4 mb-3 p-3 bg-red-50 text-red-700 rounded">
+            {err}
+          </div>
+        )}
 
         {step === "form" ? (
           <>
             <select
               className="w-full border p-2 mb-3 rounded"
               value={form.fromAccountId}
-              onChange={(e) => setForm((prev) => ({ ...prev, fromAccountId: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, fromAccountId: e.target.value }))
+              }
               disabled={loadingAccounts || loading}
             >
               <option value="">Select account</option>
@@ -244,14 +251,18 @@ export default function WireTransferPage() {
             </select>
 
             {selectedFrom && (
-              <div className="text-xs text-slate-500 mb-3">From: {selectedFrom.accountNumber}</div>
+              <div className="text-xs text-slate-500 mb-3">
+                From: {selectedFrom.accountNumber}
+              </div>
             )}
 
             <input
               placeholder="Routing Number"
               className="w-full border p-2 mb-3 rounded"
               value={form.routingNumber || ""}
-              onChange={(e) => setForm((prev) => ({ ...prev, routingNumber: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, routingNumber: e.target.value }))
+              }
               disabled={loading}
               inputMode="numeric"
             />
@@ -263,7 +274,9 @@ export default function WireTransferPage() {
               placeholder="Amount"
               className="w-full border p-2 mb-3 rounded"
               value={form.amount}
-              onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, amount: e.target.value }))
+              }
               disabled={loading}
               inputMode="decimal"
             />
@@ -272,7 +285,9 @@ export default function WireTransferPage() {
               placeholder="Beneficiary Name"
               className="w-full border p-2 mb-3 rounded"
               value={form.beneficiaryName}
-              onChange={(e) => setForm((prev) => ({ ...prev, beneficiaryName: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, beneficiaryName: e.target.value }))
+              }
               disabled={loading}
             />
 
@@ -280,7 +295,9 @@ export default function WireTransferPage() {
               placeholder="Bank Name"
               className="w-full border p-2 mb-3 rounded"
               value={form.bankName}
-              onChange={(e) => setForm((prev) => ({ ...prev, bankName: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, bankName: e.target.value }))
+              }
               disabled={loading}
             />
 
@@ -289,14 +306,17 @@ export default function WireTransferPage() {
               className="w-full border p-2 mb-4 rounded"
               value={form.bankAccountNumber}
               onChange={(e) =>
-                setForm((prev) => ({ ...prev, bankAccountNumber: e.target.value }))
+                setForm((prev) => ({
+                  ...prev,
+                  bankAccountNumber: e.target.value,
+                }))
               }
               disabled={loading}
             />
 
             <button
               type="button"
-              onClick={handleTransferClick}
+              onClick={requestOtp}
               disabled={loading || loadingAccounts}
               className="bg-blue-600 text-white px-4 py-2 rounded w-full hover:bg-blue-700 disabled:opacity-60"
             >
@@ -326,6 +346,7 @@ export default function WireTransferPage() {
         )}
       </div>
 
+      {/* Existing confirm modal (unchanged) */}
       <ConfirmModal
         open={showConfirm}
         title="Are you sure you want to transfer?"
@@ -345,6 +366,18 @@ export default function WireTransferPage() {
           setPendingConfirmBody(null);
         }}
         onConfirm={confirmWireNow}
+      />
+
+      {/* ✅ NEW success popup only */}
+      <ConfirmModal
+        open={showSuccess}
+        title="Transfer successful ✅"
+        lines={[successText]}
+        confirmText="OK"
+        cancelText="Cancel"
+        loading={false}
+        onCancel={() => setShowSuccess(false)}
+        onConfirm={onSuccessOk}
       />
     </div>
   );
