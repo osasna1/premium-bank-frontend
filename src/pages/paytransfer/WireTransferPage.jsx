@@ -35,6 +35,13 @@ export default function WireTransferPage() {
     description: "Wire transfer",
   });
 
+  // ✅ display label helper (chequing -> checking)
+  const displayType = (type) => {
+    const t = String(type || "").toLowerCase();
+    if (t === "chequing") return "checking";
+    return t;
+  };
+
   const formatMoney = (value) => {
     const n = Number(value || 0);
     return new Intl.NumberFormat("en-CA", {
@@ -225,9 +232,10 @@ export default function WireTransferPage() {
               disabled={loadingAccounts || loading}
             >
               <option value="">Select account</option>
+
               {accounts.map((a) => (
                 <option key={a._id} value={a._id}>
-                  {a.type} • {a.accountNumber} • {formatMoney(a.balance)}
+                  {displayType(a.type)} • {a.accountNumber} • {formatMoney(a.balance)}
                 </option>
               ))}
             </select>
@@ -236,14 +244,11 @@ export default function WireTransferPage() {
               <div className="text-xs text-slate-500 mb-3">From: {selectedFrom.accountNumber}</div>
             )}
 
-            {/* ✅ Routing Number (type freely, validate on submit) */}
             <input
               placeholder="Routing Number"
               className="w-full border p-2 mb-3 rounded"
               value={form.routingNumber || ""}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, routingNumber: e.target.value }))
-              }
+              onChange={(e) => setForm((prev) => ({ ...prev, routingNumber: e.target.value }))}
               disabled={loading}
               inputMode="numeric"
             />
@@ -264,9 +269,7 @@ export default function WireTransferPage() {
               placeholder="Beneficiary Name"
               className="w-full border p-2 mb-3 rounded"
               value={form.beneficiaryName}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, beneficiaryName: e.target.value }))
-              }
+              onChange={(e) => setForm((prev) => ({ ...prev, beneficiaryName: e.target.value }))}
               disabled={loading}
             />
 
