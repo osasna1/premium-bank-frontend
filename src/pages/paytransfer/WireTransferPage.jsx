@@ -44,10 +44,9 @@ export default function WireTransferPage() {
   };
 
   const amountNum = Number(form.amount || 0);
-  const feesNum = 0; // you can change later if you add fees
+  const feesNum = 0;
   const totalNum = amountNum + feesNum;
 
-  // Load accounts
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
@@ -73,8 +72,8 @@ export default function WireTransferPage() {
 
     if (!form.fromAccountId) return setErr("Select account.");
 
-    // ✅ Routing number is mandatory
-    const routingClean = String(form.routingNumber || "").replace(/\s+/g, "");
+    // ✅ Routing number is mandatory (validate on submit)
+    const routingClean = String(form.routingNumber || "").replace(/[\s-]/g, "");
     if (!routingClean) return setErr("Enter routing number.");
     if (!/^\d+$/.test(routingClean)) return setErr("Routing number must be digits only.");
     if (routingClean.length < 5 || routingClean.length > 12) {
@@ -90,10 +89,9 @@ export default function WireTransferPage() {
     try {
       setLoading(true);
 
-      // ✅ Ensure backend gets clean payload + amount is a number
       const payload = {
         fromAccountId: form.fromAccountId,
-        routingNumber: routingClean, // ✅ NEW
+        routingNumber: routingClean, // ✅ send cleaned digits
         amount: amountNum,
         beneficiaryName: form.beneficiaryName.trim(),
         bankName: form.bankName.trim(),
@@ -103,7 +101,6 @@ export default function WireTransferPage() {
 
       const res = await api.post("/transactions/wire/request-otp", payload);
 
-      // ✅ save id if backend returns it
       const id = res?.data?.otpId || res?.data?.requestId || res?.data?.id || "";
       setOtpRequestId(id);
 
@@ -116,7 +113,6 @@ export default function WireTransferPage() {
     }
   };
 
-  // ✅ Step: User enters OTP -> OPEN CONFIRMATION MODAL (do not process yet)
   const openConfirmModal = () => {
     setErr("");
     setMsg("");
@@ -133,7 +129,6 @@ export default function WireTransferPage() {
     setShowConfirm(true);
   };
 
-  // ✅ Step: user clicks YES in modal -> now we process transfer
   const confirmWireNow = async () => {
     setErr("");
     setMsg("");
@@ -156,7 +151,7 @@ export default function WireTransferPage() {
 
       setForm({
         fromAccountId: "",
-        routingNumber: "", // ✅ NEW reset
+        routingNumber: "",
         amount: "",
         beneficiaryName: "",
         bankName: "",
@@ -216,23 +211,17 @@ export default function WireTransferPage() {
         </div>
 
         {msg && (
-          <div className="mt-4 mb-3 p-3 bg-green-50 text-green-700 rounded">
-            {msg}
-          </div>
+          <div className="mt-4 mb-3 p-3 bg-green-50 text-green-700 rounded">{msg}</div>
         )}
 
-        {err && (
-          <div className="mt-4 mb-3 p-3 bg-red-50 text-red-700 rounded">
-            {err}
-          </div>
-        )}
+        {err && <div className="mt-4 mb-3 p-3 bg-red-50 text-red-700 rounded">{err}</div>}
 
         {step === "form" ? (
           <>
             <select
               className="w-full border p-2 mb-3 rounded"
               value={form.fromAccountId}
-              onChange={(e) => setForm({ ...form, fromAccountId: e.target.value })}
+              onChange={(e) => setForm((prev) => ({ ...prev, fromAccountId: e.target.value }))}
               disabled={loadingAccounts || loading}
             >
               <option value="">Select account</option>
@@ -244,30 +233,29 @@ export default function WireTransferPage() {
             </select>
 
             {selectedFrom && (
-              <div className="text-xs text-slate-500 mb-3">
-                From: {selectedFrom.accountNumber}
-              </div>
+              <div className="text-xs text-slate-500 mb-3">From: {selectedFrom.accountNumber}</div>
             )}
 
-            {/* ✅ NEW: Routing Number (MANDATORY) */}
+            {/* ✅ Routing Number (type freely, validate on submit) */}
             <input
               placeholder="Routing Number"
               className="w-full border p-2 mb-3 rounded"
-              value={form.routingNumber}
-              onChange={(e) => {
-                // keep digits only (nice UX)
-                const v = e.target.value.replace(/[^\d]/g, "");
-                setForm({ ...form, routingNumber: v });
-              }}
+              value={form.routingNumber || ""}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, routingNumber: e.target.value }))
+              }
               disabled={loading}
               inputMode="numeric"
             />
+            <p className="text-xs text-slate-500 -mt-2 mb-3">
+              Digits only (5–12). Example: 123456789
+            </p>
 
             <input
               placeholder="Amount"
               className="w-full border p-2 mb-3 rounded"
               value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
               disabled={loading}
               inputMode="decimal"
             />
@@ -276,7 +264,9 @@ export default function WireTransferPage() {
               placeholder="Beneficiary Name"
               className="w-full border p-2 mb-3 rounded"
               value={form.beneficiaryName}
-              onChange={(e) => setForm({ ...form, beneficiaryName: e.target.value })}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, beneficiaryName: e.target.value }))
+              }
               disabled={loading}
             />
 
@@ -284,7 +274,7 @@ export default function WireTransferPage() {
               placeholder="Bank Name"
               className="w-full border p-2 mb-3 rounded"
               value={form.bankName}
-              onChange={(e) => setForm({ ...form, bankName: e.target.value })}
+              onChange={(e) => setForm((prev) => ({ ...prev, bankName: e.target.value }))}
               disabled={loading}
             />
 
@@ -292,7 +282,9 @@ export default function WireTransferPage() {
               placeholder="Account Number"
               className="w-full border p-2 mb-4 rounded"
               value={form.bankAccountNumber}
-              onChange={(e) => setForm({ ...form, bankAccountNumber: e.target.value })}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, bankAccountNumber: e.target.value }))
+              }
               disabled={loading}
             />
 
@@ -328,7 +320,6 @@ export default function WireTransferPage() {
         )}
       </div>
 
-      {/* ✅ Blue confirmation modal */}
       <ConfirmModal
         open={showConfirm}
         title="Are you sure you want to transfer?"
@@ -338,7 +329,7 @@ export default function WireTransferPage() {
           `Total Amount: ${formatMoney(totalNum)}`,
           `Beneficiary: ${form.beneficiaryName || "-"}`,
           `Bank: ${form.bankName || "-"}`,
-          `Routing: ${form.routingNumber || "-"}`, // ✅ NEW
+          `Routing: ${form.routingNumber || "-"}`,
         ]}
         confirmText="Yes, transfer"
         cancelText="Cancel"
