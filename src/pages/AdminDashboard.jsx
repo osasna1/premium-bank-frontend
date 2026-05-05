@@ -13,7 +13,7 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  const [tab, setTab] = useState("users"); // users | transactions
+  const [tab, setTab] = useState("users");
 
   const [users, setUsers] = useState([]);
   const [tx, setTx] = useState([]);
@@ -26,11 +26,17 @@ export default function AdminDashboard() {
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
   const [createChequing, setCreateChequing] = useState(true);
   const [createSavings, setCreateSavings] = useState(true);
   const [chequingOpening, setChequingOpening] = useState(0);
   const [savingsOpening, setSavingsOpening] = useState(0);
+
+  // Deposit to existing account
+  const [depositAccountNumber, setDepositAccountNumber] = useState("");
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositDescription, setDepositDescription] = useState("");
+  const [depositPostedAt, setDepositPostedAt] = useState("");
+  const [depositSuccess, setDepositSuccess] = useState("");
 
   // tx filters
   const [page, setPage] = useState(1);
@@ -57,7 +63,7 @@ export default function AdminDashboard() {
     setErr("");
     try {
       const res = await api.get("/admin/users");
-      setUsers(res.data?.users || []); // ✅ backend returns { users: [...] }
+      setUsers(res.data?.users || []);
     } catch (e) {
       setErr(e?.response?.data?.message || "Failed to load users");
     } finally {
@@ -114,7 +120,6 @@ export default function AdminDashboard() {
         savingsOpening: Number(savingsOpening) || 0,
       });
 
-      // clear form
       setCustomerEmail("");
       setFullName("");
       setPassword("");
@@ -127,6 +132,33 @@ export default function AdminDashboard() {
       await loadUsers();
     } catch (e) {
       setErr(e?.response?.data?.message || "Failed to create customer");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const adminDeposit = async () => {
+    setErr("");
+    setDepositSuccess("");
+
+    if (!depositAccountNumber.trim()) return setErr("Account number is required");
+    if (!depositAmount || Number(depositAmount) <= 0) return setErr("Enter a valid amount");
+
+    try {
+      setLoading(true);
+      const res = await api.post("/admin/deposit", {
+        accountNumber: depositAccountNumber.trim().toUpperCase(),
+        amount: Number(depositAmount),
+        description: depositDescription || "Admin deposit",
+        postedAt: depositPostedAt || undefined,
+      });
+      setDepositSuccess(`Deposit successful! New balance: ${formatMoney(res.data.newBalance)}`);
+      setDepositAccountNumber("");
+      setDepositAmount("");
+      setDepositDescription("");
+      setDepositPostedAt("");
+    } catch (e) {
+      setErr(e?.response?.data?.message || "Deposit failed");
     } finally {
       setLoading(false);
     }
@@ -188,9 +220,10 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* USERS */}
+        {/* USERS TAB */}
         {tab === "users" && (
           <div className="space-y-6">
+
             {/* Create Customer */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
               <h2 className="text-xl font-semibold text-slate-900">Create Customer Account</h2>
@@ -296,6 +329,73 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* ✅ Deposit to Existing Account */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+              <h2 className="text-xl font-semibold text-slate-900">Deposit to Existing Account</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Add funds to a customer's chequing or savings account by account number.
+              </p>
+
+              {depositSuccess && (
+                <div className="mt-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                  ✅ {depositSuccess}
+                </div>
+              )}
+
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Account Number (e.g. PB12345678)</label>
+                  <input
+                    className="mt-1 w-full border rounded-xl p-3 uppercase"
+                    placeholder="PB12345678"
+                    value={depositAccountNumber}
+                    onChange={(e) => setDepositAccountNumber(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Amount (CAD)</label>
+                  <input
+                    type="number"
+                    className="mt-1 w-full border rounded-xl p-3"
+                    placeholder="0.00"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Description (optional)</label>
+                  <input
+                    className="mt-1 w-full border rounded-xl p-3"
+                    placeholder="e.g. Salary, Bonus, Transfer"
+                    value={depositDescription}
+                    onChange={(e) => setDepositDescription(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Posted Date (optional backdate)</label>
+                  <input
+                    type="datetime-local"
+                    className="mt-1 w-full border rounded-xl p-3"
+                    value={depositPostedAt}
+                    onChange={(e) => setDepositPostedAt(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <button
+                  onClick={adminDeposit}
+                  disabled={loading}
+                  className="rounded-xl bg-pb-600 text-white px-5 py-3 text-sm font-semibold hover:bg-pb-700 disabled:opacity-60"
+                >
+                  {loading ? "Processing..." : "Deposit Funds"}
+                </button>
+              </div>
+            </div>
+
             {/* Users List */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
               <div className="flex items-center justify-between">
@@ -337,15 +437,15 @@ export default function AdminDashboard() {
                 </table>
               </div>
             </div>
+
           </div>
         )}
 
-        {/* TRANSACTIONS */}
+        {/* TRANSACTIONS TAB */}
         {tab === "transactions" && (
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
             <div className="flex items-center justify-between gap-4">
               <h2 className="text-xl font-semibold text-slate-900">Transactions</h2>
-
               <button
                 onClick={() => loadTx(1)}
                 className="rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
