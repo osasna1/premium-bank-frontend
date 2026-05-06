@@ -24,7 +24,6 @@ export default function AdminPanel() {
     }
   }, []);
 
-  // ===== CREATE CUSTOMER FORM =====
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
@@ -35,7 +34,6 @@ export default function AdminPanel() {
   const [savingsOpening, setSavingsOpening] = useState(0);
   const [postedAtLocal, setPostedAtLocal] = useState("");
 
-  // ===== DEPOSIT TO EXISTING ACCOUNT =====
   const [depositAccountNumber, setDepositAccountNumber] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
   const [depositDescription, setDepositDescription] = useState("");
@@ -44,19 +42,16 @@ export default function AdminPanel() {
   const [depositErr, setDepositErr] = useState("");
   const [loadingDeposit, setLoadingDeposit] = useState(false);
 
-  // ===== DATA =====
   const [customers, setCustomers] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [tx, setTx] = useState([]);
 
-  // ===== TRANSACTION FILTERS =====
   const [txPage, setTxPage] = useState(1);
   const [txTotalPages, setTxTotalPages] = useState(1);
   const [txSearch, setTxSearch] = useState("");
   const [txType, setTxType] = useState("");
   const [txDirection, setTxDirection] = useState("");
 
-  // ===== LOADING + ERRORS =====
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
@@ -103,7 +98,6 @@ export default function AdminPanel() {
     return String(type || "").toUpperCase();
   };
 
-  // ===== LOADERS =====
   const loadCustomers = async () => {
     setLoadingCustomers(true);
     setErrCustomers("");
@@ -206,7 +200,6 @@ export default function AdminPanel() {
     }
   };
 
-  // ===== DELETE CUSTOMER =====
   const deleteCustomer = async (customer) => {
     const id = customer?._id;
     if (!id) return;
@@ -305,7 +298,7 @@ export default function AdminPanel() {
       const res = await api.post("/admin/deposit", {
         accountNumber: depositAccountNumber.trim().toUpperCase(),
         amount: Number(depositAmount),
-        description: depositDescription || "Admin deposit",
+        description: depositDescription || "Deposit",
         ...(postedAtISO ? { postedAt: postedAtISO } : {}),
       });
       setDepositSuccess(`Deposit successful! New balance: ${formatMoney(res.data.newBalance)}`);
@@ -324,7 +317,6 @@ export default function AdminPanel() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* TOP BAR */}
       <div className="h-14 bg-pb-600 flex items-center px-6 justify-between">
         <div className="flex items-center gap-3 text-white">
           <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center font-bold">PB</div>
@@ -339,12 +331,8 @@ export default function AdminPanel() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {msg && (
-          <div className="mb-5 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{msg}</div>
-        )}
-        {errCreate && (
-          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errCreate}</div>
-        )}
+        {msg && <div className="mb-5 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{msg}</div>}
+        {errCreate && <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errCreate}</div>}
 
         {/* CREATE CUSTOMER */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
@@ -404,12 +392,8 @@ export default function AdminPanel() {
         <div className="mt-6 bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
           <h2 className="text-xl font-semibold text-slate-900">Deposit to Existing Account</h2>
           <p className="text-sm text-slate-500 mt-1">Add funds to a customer's checking or savings account by account number.</p>
-          {depositSuccess && (
-            <div className="mt-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">✅ {depositSuccess}</div>
-          )}
-          {depositErr && (
-            <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{depositErr}</div>
-          )}
+          {depositSuccess && <div className="mt-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">✅ {depositSuccess}</div>}
+          {depositErr && <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{depositErr}</div>}
           <form onSubmit={adminDeposit} className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-semibold">Account Number (e.g. PB12345678)</label>
@@ -443,9 +427,7 @@ export default function AdminPanel() {
               {loadingCustomers ? "Refreshing..." : "Refresh Users"}
             </button>
           </div>
-          {errCustomers && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errCustomers}</div>
-          )}
+          {errCustomers && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errCustomers}</div>}
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-100">
@@ -513,9 +495,7 @@ export default function AdminPanel() {
               {loadingAccounts ? "Refreshing..." : "Refresh Accounts"}
             </button>
           </div>
-          {errAccounts && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errAccounts}</div>
-          )}
+          {errAccounts && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errAccounts}</div>}
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-100">
@@ -556,9 +536,7 @@ export default function AdminPanel() {
               {loadingTx ? "Refreshing..." : "Refresh Transactions"}
             </button>
           </div>
-          {errTx && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errTx}</div>
-          )}
+          {errTx && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errTx}</div>}
           <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
             <input className="border rounded-xl p-2" placeholder="Search reference/description..." value={txSearch} onChange={(e) => setTxSearch(e.target.value)} />
             <select className="border rounded-xl p-2" value={txType} onChange={(e) => setTxType(e.target.value)}>
