@@ -69,11 +69,10 @@ export default function AdminPanel() {
   const [msg, setMsg] = useState("");
 
   const [updatingUserId, setUpdatingUserId] = useState(null);
+  const [deletingUserId, setDeletingUserId] = useState(null);
 
   const formatMoney = (n) =>
-    new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(
-      Number(n || 0)
-    );
+    new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(Number(n || 0));
 
   const formatTxDate = (t) => {
     const d = t?.postedAt || t?.createdAt;
@@ -207,6 +206,29 @@ export default function AdminPanel() {
     }
   };
 
+  // ===== DELETE CUSTOMER =====
+  const deleteCustomer = async (customer) => {
+    const id = customer?._id;
+    if (!id) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${customer.fullName || customer.email}"?\n\nThis will permanently delete their account and all transactions.`
+    );
+    if (!confirmed) return;
+    setDeletingUserId(id);
+    setErrCustomers("");
+    setMsg("");
+    try {
+      await api.delete(`/admin/users/${id}`);
+      setCustomers((prev) => prev.filter((c) => String(c._id) !== String(id)));
+      setMsg("Customer deleted successfully ✅");
+      await loadAccounts();
+    } catch (e) {
+      setErrCustomers(e?.response?.data?.message || "Failed to delete customer");
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
   useEffect(() => {
     (async () => {
       await loadCustomers();
@@ -271,7 +293,6 @@ export default function AdminPanel() {
     }
   };
 
-  // ===== ADMIN DEPOSIT =====
   const adminDeposit = async (e) => {
     e.preventDefault();
     setDepositErr("");
@@ -306,217 +327,108 @@ export default function AdminPanel() {
       {/* TOP BAR */}
       <div className="h-14 bg-pb-600 flex items-center px-6 justify-between">
         <div className="flex items-center gap-3 text-white">
-          <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center font-bold">
-            PB
-          </div>
+          <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center font-bold">PB</div>
           <div className="font-semibold tracking-wide">Premium Bank — Admin</div>
-          <span className="ml-2 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
-            BACKDATE ENABLED ✅
-          </span>
+          <span className="ml-2 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">BACKDATE ENABLED ✅</span>
         </div>
-
         <div className="flex items-center gap-3 text-white/90">
           <span className="text-sm hidden sm:block">{user?.email || "Admin"}</span>
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="rounded-full bg-white/15 hover:bg-white/20 px-4 py-2 text-sm font-semibold"
-          >
-            Customer View
-          </button>
-          <button
-            onClick={onLogout}
-            className="rounded-full bg-white/15 hover:bg-white/20 px-4 py-2 text-sm font-semibold"
-          >
-            Logout
-          </button>
+          <button onClick={() => navigate("/dashboard")} className="rounded-full bg-white/15 hover:bg-white/20 px-4 py-2 text-sm font-semibold">Customer View</button>
+          <button onClick={onLogout} className="rounded-full bg-white/15 hover:bg-white/20 px-4 py-2 text-sm font-semibold">Logout</button>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
         {msg && (
-          <div className="mb-5 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-            {msg}
-          </div>
+          <div className="mb-5 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{msg}</div>
         )}
         {errCreate && (
-          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {errCreate}
-          </div>
+          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errCreate}</div>
         )}
 
         {/* CREATE CUSTOMER */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
           <h2 className="text-xl font-semibold text-slate-900">Create Customer Account</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Admin sets customer email + first password + opening balances.
-          </p>
-
+          <p className="text-sm text-slate-500 mt-1">Admin sets customer email + first password + opening balances.</p>
           <form onSubmit={createCustomer} className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-semibold">Customer Email</label>
-              <input
-                className="mt-1 w-full border rounded-xl p-3"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="customer@email.com"
-                type="email"
-                required
-              />
+              <input className="mt-1 w-full border rounded-xl p-3" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="customer@email.com" type="email" required />
             </div>
             <div>
               <label className="text-sm font-semibold">Full Name (optional)</label>
-              <input
-                className="mt-1 w-full border rounded-xl p-3"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="John Doe"
-              />
+              <input className="mt-1 w-full border rounded-xl p-3" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Doe" />
             </div>
             <div>
               <label className="text-sm font-semibold">Create Password</label>
-              <input
-                className="mt-1 w-full border rounded-xl p-3"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Min 6 characters"
-                type="password"
-                required
-              />
+              <input className="mt-1 w-full border rounded-xl p-3" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" type="password" required />
             </div>
             <div>
               <label className="text-sm font-semibold">Confirm Password</label>
-              <input
-                className="mt-1 w-full border rounded-xl p-3"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                placeholder="Re-type password"
-                type="password"
-                required
-              />
+              <input className="mt-1 w-full border rounded-xl p-3" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Re-type password" type="password" required />
             </div>
             <div className="md:col-span-2 flex items-center gap-6">
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={chequing} onChange={() => setChequing((v) => !v)} />
-                Checking
+                <input type="checkbox" checked={chequing} onChange={() => setChequing((v) => !v)} />Checking
               </label>
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={savings} onChange={() => setSavings((v) => !v)} />
-                Savings
+                <input type="checkbox" checked={savings} onChange={() => setSavings((v) => !v)} />Savings
               </label>
             </div>
             <div>
               <label className="text-sm font-semibold">Checking Opening Balance</label>
-              <input
-                className="mt-1 w-full border rounded-xl p-3"
-                value={chequingOpening}
-                onChange={(e) => setChequingOpening(e.target.value)}
-                type="number"
-                min="0"
-              />
+              <input className="mt-1 w-full border rounded-xl p-3" value={chequingOpening} onChange={(e) => setChequingOpening(e.target.value)} type="number" min="0" />
             </div>
             <div>
               <label className="text-sm font-semibold">Savings Opening Balance</label>
-              <input
-                className="mt-1 w-full border rounded-xl p-3"
-                value={savingsOpening}
-                onChange={(e) => setSavingsOpening(e.target.value)}
-                type="number"
-                min="0"
-              />
+              <input className="mt-1 w-full border rounded-xl p-3" value={savingsOpening} onChange={(e) => setSavingsOpening(e.target.value)} type="number" min="0" />
             </div>
             <div className="md:col-span-2">
-              <label className="text-sm font-semibold">
-                Opening Deposit Date/Time (Backdate){" "}
-                <span className="text-slate-400 font-normal">(optional)</span>
-              </label>
-              <input
-                className="mt-1 w-full border rounded-xl p-3"
-                value={postedAtLocal}
-                onChange={(e) => setPostedAtLocal(e.target.value)}
-                type="datetime-local"
-                disabled={anyOpeningAmount <= 0}
-              />
+              <label className="text-sm font-semibold">Opening Deposit Date/Time (Backdate) <span className="text-slate-400 font-normal">(optional)</span></label>
+              <input className="mt-1 w-full border rounded-xl p-3" value={postedAtLocal} onChange={(e) => setPostedAtLocal(e.target.value)} type="datetime-local" disabled={anyOpeningAmount <= 0} />
               {anyOpeningAmount <= 0 ? (
-                <p className="text-xs text-slate-500 mt-1">
-                  Add an opening balance above to enable backdating.
-                </p>
+                <p className="text-xs text-slate-500 mt-1">Add an opening balance above to enable backdating.</p>
               ) : (
                 <p className="text-xs text-slate-500 mt-1">Leave empty to use today's date/time.</p>
               )}
             </div>
             <div className="md:col-span-2">
-              <button
-                disabled={loadingCreate}
-                className="rounded-xl bg-pb-600 text-white px-5 py-3 font-semibold hover:bg-pb-700 disabled:opacity-60"
-              >
+              <button disabled={loadingCreate} className="rounded-xl bg-pb-600 text-white px-5 py-3 font-semibold hover:bg-pb-700 disabled:opacity-60">
                 {loadingCreate ? "Creating..." : "Create Customer"}
               </button>
             </div>
           </form>
         </div>
 
-        {/* ✅ DEPOSIT TO EXISTING ACCOUNT */}
+        {/* DEPOSIT TO EXISTING ACCOUNT */}
         <div className="mt-6 bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
           <h2 className="text-xl font-semibold text-slate-900">Deposit to Existing Account</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Add funds to a customer's checking or savings account by account number.
-          </p>
-
+          <p className="text-sm text-slate-500 mt-1">Add funds to a customer's checking or savings account by account number.</p>
           {depositSuccess && (
-            <div className="mt-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-              ✅ {depositSuccess}
-            </div>
+            <div className="mt-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">✅ {depositSuccess}</div>
           )}
           {depositErr && (
-            <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {depositErr}
-            </div>
+            <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{depositErr}</div>
           )}
-
           <form onSubmit={adminDeposit} className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-semibold">Account Number (e.g. PB12345678)</label>
-              <input
-                className="mt-1 w-full border rounded-xl p-3 uppercase"
-                placeholder="PB12345678"
-                value={depositAccountNumber}
-                onChange={(e) => setDepositAccountNumber(e.target.value)}
-              />
+              <input className="mt-1 w-full border rounded-xl p-3 uppercase" placeholder="PB12345678" value={depositAccountNumber} onChange={(e) => setDepositAccountNumber(e.target.value)} />
             </div>
             <div>
               <label className="text-sm font-semibold">Amount (CAD)</label>
-              <input
-                type="number"
-                className="mt-1 w-full border rounded-xl p-3"
-                placeholder="0.00"
-                min="0"
-                value={depositAmount}
-                onChange={(e) => setDepositAmount(e.target.value)}
-              />
+              <input type="number" className="mt-1 w-full border rounded-xl p-3" placeholder="0.00" min="0" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} />
             </div>
             <div>
               <label className="text-sm font-semibold">Description (optional)</label>
-              <input
-                className="mt-1 w-full border rounded-xl p-3"
-                placeholder="e.g. Salary, Bonus, Transfer"
-                value={depositDescription}
-                onChange={(e) => setDepositDescription(e.target.value)}
-              />
+              <input className="mt-1 w-full border rounded-xl p-3" placeholder="e.g. Salary, Bonus, Transfer" value={depositDescription} onChange={(e) => setDepositDescription(e.target.value)} />
             </div>
             <div>
               <label className="text-sm font-semibold">Posted Date (optional backdate)</label>
-              <input
-                type="datetime-local"
-                className="mt-1 w-full border rounded-xl p-3"
-                value={depositPostedAt}
-                onChange={(e) => setDepositPostedAt(e.target.value)}
-              />
+              <input type="datetime-local" className="mt-1 w-full border rounded-xl p-3" value={depositPostedAt} onChange={(e) => setDepositPostedAt(e.target.value)} />
             </div>
             <div className="md:col-span-2">
-              <button
-                disabled={loadingDeposit}
-                className="rounded-xl bg-pb-600 text-white px-5 py-3 font-semibold hover:bg-pb-700 disabled:opacity-60"
-              >
+              <button disabled={loadingDeposit} className="rounded-xl bg-pb-600 text-white px-5 py-3 font-semibold hover:bg-pb-700 disabled:opacity-60">
                 {loadingDeposit ? "Processing..." : "Deposit Funds"}
               </button>
             </div>
@@ -527,20 +439,13 @@ export default function AdminPanel() {
         <div className="mt-6 bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-slate-900">Customers</h2>
-            <button
-              onClick={loadCustomers}
-              className="rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
+            <button onClick={loadCustomers} className="rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
               {loadingCustomers ? "Refreshing..." : "Refresh Users"}
             </button>
           </div>
-
           {errCustomers && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {errCustomers}
-            </div>
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errCustomers}</div>
           )}
-
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-100">
@@ -549,24 +454,26 @@ export default function AdminPanel() {
                   <th className="p-3">Email</th>
                   <th className="p-3">Status</th>
                   <th className="p-3">Created</th>
+                  <th className="p-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loadingCustomers ? (
-                  <tr><td className="p-3" colSpan="4">Loading...</td></tr>
+                  <tr><td className="p-3" colSpan="5">Loading...</td></tr>
                 ) : customers.length === 0 ? (
-                  <tr><td className="p-3" colSpan="4">No users found.</td></tr>
+                  <tr><td className="p-3" colSpan="5">No users found.</td></tr>
                 ) : (
                   customers.map((c) => {
                     const status = String(c.status || "active").toLowerCase();
                     const isActive = status === "active";
                     const isUpdating = updatingUserId === c._id;
+                    const isDeleting = deletingUserId === c._id;
                     return (
                       <tr key={c._id} className="border-t">
                         <td className="p-3">{c.fullName || "—"}</td>
                         <td className="p-3">{c.email}</td>
                         <td className="p-3">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
                             <span className={"capitalize inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold " + (isActive ? "bg-green-100 text-green-700" : "bg-slate-200 text-slate-700")}>
                               {isActive ? "Active" : "Disabled"}
                             </span>
@@ -580,6 +487,15 @@ export default function AdminPanel() {
                           </div>
                         </td>
                         <td className="p-3">{c.createdAt ? new Date(c.createdAt).toLocaleString() : "-"}</td>
+                        <td className="p-3">
+                          <button
+                            disabled={isDeleting}
+                            onClick={() => deleteCustomer(c)}
+                            className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
+                          >
+                            {isDeleting ? "Deleting..." : "🗑 Delete"}
+                          </button>
+                        </td>
                       </tr>
                     );
                   })
@@ -593,20 +509,13 @@ export default function AdminPanel() {
         <div className="mt-6 bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-slate-900">Accounts</h2>
-            <button
-              onClick={loadAccounts}
-              className="rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
+            <button onClick={loadAccounts} className="rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
               {loadingAccounts ? "Refreshing..." : "Refresh Accounts"}
             </button>
           </div>
-
           {errAccounts && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {errAccounts}
-            </div>
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errAccounts}</div>
           )}
-
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-100">
@@ -643,27 +552,15 @@ export default function AdminPanel() {
         <div className="mt-6 bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-slate-900">All Transactions</h2>
-            <button
-              onClick={() => loadTransactions(1)}
-              className="rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
+            <button onClick={() => loadTransactions(1)} className="rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
               {loadingTx ? "Refreshing..." : "Refresh Transactions"}
             </button>
           </div>
-
           {errTx && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {errTx}
-            </div>
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errTx}</div>
           )}
-
           <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-            <input
-              className="border rounded-xl p-2"
-              placeholder="Search reference/description..."
-              value={txSearch}
-              onChange={(e) => setTxSearch(e.target.value)}
-            />
+            <input className="border rounded-xl p-2" placeholder="Search reference/description..." value={txSearch} onChange={(e) => setTxSearch(e.target.value)} />
             <select className="border rounded-xl p-2" value={txType} onChange={(e) => setTxType(e.target.value)}>
               <option value="">All Types</option>
               <option value="deposit">Deposit</option>
@@ -677,14 +574,8 @@ export default function AdminPanel() {
               <option value="credit">Credit</option>
               <option value="debit">Debit</option>
             </select>
-            <button
-              onClick={applyTxFilters}
-              className="rounded-xl bg-pb-600 text-white p-2 font-semibold hover:bg-pb-700"
-            >
-              Apply
-            </button>
+            <button onClick={applyTxFilters} className="rounded-xl bg-pb-600 text-white p-2 font-semibold hover:bg-pb-700">Apply</button>
           </div>
-
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-100">
@@ -721,25 +612,10 @@ export default function AdminPanel() {
               </tbody>
             </table>
           </div>
-
           <div className="flex items-center justify-between mt-4">
-            <button
-              className="border rounded-xl px-4 py-2 disabled:opacity-40"
-              disabled={txPage <= 1}
-              onClick={() => setTxPage((p) => p - 1)}
-            >
-              Prev
-            </button>
-            <div className="text-sm">
-              Page <b>{txPage}</b> of <b>{txTotalPages}</b>
-            </div>
-            <button
-              className="border rounded-xl px-4 py-2 disabled:opacity-40"
-              disabled={txPage >= txTotalPages}
-              onClick={() => setTxPage((p) => p + 1)}
-            >
-              Next
-            </button>
+            <button className="border rounded-xl px-4 py-2 disabled:opacity-40" disabled={txPage <= 1} onClick={() => setTxPage((p) => p - 1)}>Prev</button>
+            <div className="text-sm">Page <b>{txPage}</b> of <b>{txTotalPages}</b></div>
+            <button className="border rounded-xl px-4 py-2 disabled:opacity-40" disabled={txPage >= txTotalPages} onClick={() => setTxPage((p) => p + 1)}>Next</button>
           </div>
         </div>
       </div>
