@@ -3,19 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 
 function localDatetimeToISO(localValue) {
-  // localValue: "YYYY-MM-DDTHH:mm" (no timezone)
-  // Convert to a local Date safely, then to ISO.
   if (!localValue) return undefined;
-
   const [d, t] = String(localValue).split("T");
   if (!d || !t) return undefined;
-
   const [y, m, day] = d.split("-").map(Number);
   const [hh, mm] = t.split(":").map(Number);
-
-  const dt = new Date(y, m - 1, day, hh, mm, 0, 0); // LOCAL time
+  const dt = new Date(y, m - 1, day, hh, mm, 0, 0);
   if (Number.isNaN(dt.getTime())) return undefined;
-
   return dt.toISOString();
 }
 
@@ -39,9 +33,16 @@ export default function AdminPanel() {
   const [savings, setSavings] = useState(true);
   const [chequingOpening, setChequingOpening] = useState(0);
   const [savingsOpening, setSavingsOpening] = useState(0);
-
-  // ✅ Backdate datetime (local input value) e.g. "2016-05-10T09:30"
   const [postedAtLocal, setPostedAtLocal] = useState("");
+
+  // ===== DEPOSIT TO EXISTING ACCOUNT =====
+  const [depositAccountNumber, setDepositAccountNumber] = useState("");
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositDescription, setDepositDescription] = useState("");
+  const [depositPostedAt, setDepositPostedAt] = useState("");
+  const [depositSuccess, setDepositSuccess] = useState("");
+  const [depositErr, setDepositErr] = useState("");
+  const [loadingDeposit, setLoadingDeposit] = useState(false);
 
   // ===== DATA =====
   const [customers, setCustomers] = useState([]);
@@ -67,7 +68,6 @@ export default function AdminPanel() {
   const [errCreate, setErrCreate] = useState("");
   const [msg, setMsg] = useState("");
 
-  // ✅ per-row update state
   const [updatingUserId, setUpdatingUserId] = useState(null);
 
   const formatMoney = (n) =>
@@ -75,7 +75,6 @@ export default function AdminPanel() {
       Number(n || 0)
     );
 
-  // ✅ show backdated date in admin tx list too
   const formatTxDate = (t) => {
     const d = t?.postedAt || t?.createdAt;
     if (!d) return "-";
@@ -89,7 +88,6 @@ export default function AdminPanel() {
     navigate("/login", { replace: true });
   };
 
-  // helper: supports MANY backend response shapes
   const unwrapList = (payload, keys = []) => {
     if (Array.isArray(payload)) return payload;
     for (const k of keys) {
@@ -100,7 +98,6 @@ export default function AdminPanel() {
     return [];
   };
 
-  // ✅ UI helper: show CHECKING instead of chequing (display only)
   const displayAccountType = (type) => {
     const t = String(type || "").toLowerCase();
     if (t === "chequing") return "CHECKING";
@@ -163,11 +160,9 @@ export default function AdminPanel() {
       const res = await api.get("/admin/transactions", {
         params: { page, limit: 20, search: txSearch, type: txType, direction: txDirection },
       });
-
       const items = Array.isArray(res.data?.items)
         ? res.data.items
         : unwrapList(res.data, ["transactions"]);
-
       const mapped = items.map((t) => ({
         _id: t._id || t.id,
         createdAt: t.createdAt || null,
@@ -180,7 +175,6 @@ export default function AdminPanel() {
         userEmail: t.userEmail || t.userId?.email || "",
         accountNumber: t.accountNumber || t.accountId?.accountNumber || "",
       }));
-
       setTx(mapped);
       setTxTotalPages(Number(res.data?.totalPages || 1));
     } catch (e) {
@@ -192,25 +186,19 @@ export default function AdminPanel() {
     }
   };
 
-  // Toggle Active <-> Disabled
   const toggleUserStatus = async (customer) => {
     const id = customer?._id;
     if (!id) return;
-
     const current = String(customer.status || "active").toLowerCase();
     const nextStatus = current === "active" ? "disabled" : "active";
-
     setUpdatingUserId(id);
     setErrCustomers("");
     setMsg("");
-
     try {
       await api.patch(`/admin/users/${id}/status`, { status: nextStatus });
-
       setCustomers((prev) =>
         prev.map((c) => (String(c._id) === String(id) ? { ...c, status: nextStatus } : c))
       );
-
       setMsg(`User status updated to ${nextStatus} ✅`);
     } catch (e) {
       setErrCustomers(e?.response?.data?.message || "Failed to update user status");
@@ -219,7 +207,6 @@ export default function AdminPanel() {
     }
   };
 
-  // load SEQUENTIALLY
   useEffect(() => {
     (async () => {
       await loadCustomers();
@@ -240,25 +227,19 @@ export default function AdminPanel() {
     loadTransactions(1);
   };
 
-  // ✅ Enable backdate only if opening balance > 0
   const anyOpeningAmount =
     (chequing ? Number(chequingOpening || 0) : 0) + (savings ? Number(savingsOpening || 0) : 0);
 
-  // ===== CREATE CUSTOMER =====
   const createCustomer = async (e) => {
     e.preventDefault();
     setErrCreate("");
     setMsg("");
-
     const cleanEmail = String(email).trim().toLowerCase();
     if (!cleanEmail) return setErrCreate("Email is required");
     if (password.length < 6) return setErrCreate("Password must be at least 6 characters");
     if (password !== confirm) return setErrCreate("Passwords do not match");
     if (!chequing && !savings) return setErrCreate("Select at least one account type");
-
-    // ✅ Convert datetime-local to ISO for backend (safe local->ISO)
     const openingDateISO = postedAtLocal ? localDatetimeToISO(postedAtLocal) : undefined;
-
     setLoadingCreate(true);
     try {
       await api.post("/admin/create-customer", {
@@ -269,11 +250,8 @@ export default function AdminPanel() {
         createSavings: savings,
         chequingOpening: Number(chequingOpening || 0),
         savingsOpening: Number(savingsOpening || 0),
-
-        // ✅ NEW preferred field (backend also accepts old postedAt)
         ...(openingDateISO ? { openingDate: openingDateISO } : {}),
       });
-
       setMsg("Customer created successfully ✅");
       setEmail("");
       setFullName("");
@@ -282,7 +260,6 @@ export default function AdminPanel() {
       setChequingOpening(0);
       setSavingsOpening(0);
       setPostedAtLocal("");
-
       await loadCustomers();
       await loadAccounts();
       await loadTransactions(1);
@@ -291,6 +268,36 @@ export default function AdminPanel() {
       setErrCreate(e2?.response?.data?.message || "Failed to create customer");
     } finally {
       setLoadingCreate(false);
+    }
+  };
+
+  // ===== ADMIN DEPOSIT =====
+  const adminDeposit = async (e) => {
+    e.preventDefault();
+    setDepositErr("");
+    setDepositSuccess("");
+    if (!depositAccountNumber.trim()) return setDepositErr("Account number is required");
+    if (!depositAmount || Number(depositAmount) <= 0) return setDepositErr("Enter a valid amount");
+    setLoadingDeposit(true);
+    try {
+      const postedAtISO = depositPostedAt ? localDatetimeToISO(depositPostedAt) : undefined;
+      const res = await api.post("/admin/deposit", {
+        accountNumber: depositAccountNumber.trim().toUpperCase(),
+        amount: Number(depositAmount),
+        description: depositDescription || "Admin deposit",
+        ...(postedAtISO ? { postedAt: postedAtISO } : {}),
+      });
+      setDepositSuccess(`Deposit successful! New balance: ${formatMoney(res.data.newBalance)}`);
+      setDepositAccountNumber("");
+      setDepositAmount("");
+      setDepositDescription("");
+      setDepositPostedAt("");
+      await loadAccounts();
+      await loadTransactions(1);
+    } catch (e) {
+      setDepositErr(e?.response?.data?.message || "Deposit failed");
+    } finally {
+      setLoadingDeposit(false);
     }
   };
 
@@ -303,8 +310,6 @@ export default function AdminPanel() {
             PB
           </div>
           <div className="font-semibold tracking-wide">Premium Bank — Admin</div>
-
-          {/* ✅ DEBUG BADGE so you know this file is showing */}
           <span className="ml-2 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
             BACKDATE ENABLED ✅
           </span>
@@ -312,14 +317,12 @@ export default function AdminPanel() {
 
         <div className="flex items-center gap-3 text-white/90">
           <span className="text-sm hidden sm:block">{user?.email || "Admin"}</span>
-
           <button
             onClick={() => navigate("/dashboard")}
             className="rounded-full bg-white/15 hover:bg-white/20 px-4 py-2 text-sm font-semibold"
           >
             Customer View
           </button>
-
           <button
             onClick={onLogout}
             className="rounded-full bg-white/15 hover:bg-white/20 px-4 py-2 text-sm font-semibold"
@@ -335,7 +338,6 @@ export default function AdminPanel() {
             {msg}
           </div>
         )}
-
         {errCreate && (
           <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {errCreate}
@@ -361,7 +363,6 @@ export default function AdminPanel() {
                 required
               />
             </div>
-
             <div>
               <label className="text-sm font-semibold">Full Name (optional)</label>
               <input
@@ -371,7 +372,6 @@ export default function AdminPanel() {
                 placeholder="John Doe"
               />
             </div>
-
             <div>
               <label className="text-sm font-semibold">Create Password</label>
               <input
@@ -383,7 +383,6 @@ export default function AdminPanel() {
                 required
               />
             </div>
-
             <div>
               <label className="text-sm font-semibold">Confirm Password</label>
               <input
@@ -395,11 +394,9 @@ export default function AdminPanel() {
                 required
               />
             </div>
-
             <div className="md:col-span-2 flex items-center gap-6">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={chequing} onChange={() => setChequing((v) => !v)} />
-                {/* ✅ UI only */}
                 Checking
               </label>
               <label className="flex items-center gap-2 text-sm">
@@ -407,7 +404,6 @@ export default function AdminPanel() {
                 Savings
               </label>
             </div>
-
             <div>
               <label className="text-sm font-semibold">Checking Opening Balance</label>
               <input
@@ -418,7 +414,6 @@ export default function AdminPanel() {
                 min="0"
               />
             </div>
-
             <div>
               <label className="text-sm font-semibold">Savings Opening Balance</label>
               <input
@@ -429,14 +424,11 @@ export default function AdminPanel() {
                 min="0"
               />
             </div>
-
-            {/* ✅ BACKDATE FIELD */}
             <div className="md:col-span-2">
               <label className="text-sm font-semibold">
                 Opening Deposit Date/Time (Backdate){" "}
                 <span className="text-slate-400 font-normal">(optional)</span>
               </label>
-
               <input
                 className="mt-1 w-full border rounded-xl p-3"
                 value={postedAtLocal}
@@ -444,22 +436,88 @@ export default function AdminPanel() {
                 type="datetime-local"
                 disabled={anyOpeningAmount <= 0}
               />
-
               {anyOpeningAmount <= 0 ? (
                 <p className="text-xs text-slate-500 mt-1">
                   Add an opening balance above to enable backdating.
                 </p>
               ) : (
-                <p className="text-xs text-slate-500 mt-1">Leave empty to use today’s date/time.</p>
+                <p className="text-xs text-slate-500 mt-1">Leave empty to use today's date/time.</p>
               )}
             </div>
-
             <div className="md:col-span-2">
               <button
                 disabled={loadingCreate}
                 className="rounded-xl bg-pb-600 text-white px-5 py-3 font-semibold hover:bg-pb-700 disabled:opacity-60"
               >
                 {loadingCreate ? "Creating..." : "Create Customer"}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* ✅ DEPOSIT TO EXISTING ACCOUNT */}
+        <div className="mt-6 bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+          <h2 className="text-xl font-semibold text-slate-900">Deposit to Existing Account</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Add funds to a customer's checking or savings account by account number.
+          </p>
+
+          {depositSuccess && (
+            <div className="mt-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+              ✅ {depositSuccess}
+            </div>
+          )}
+          {depositErr && (
+            <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {depositErr}
+            </div>
+          )}
+
+          <form onSubmit={adminDeposit} className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-semibold">Account Number (e.g. PB12345678)</label>
+              <input
+                className="mt-1 w-full border rounded-xl p-3 uppercase"
+                placeholder="PB12345678"
+                value={depositAccountNumber}
+                onChange={(e) => setDepositAccountNumber(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Amount (CAD)</label>
+              <input
+                type="number"
+                className="mt-1 w-full border rounded-xl p-3"
+                placeholder="0.00"
+                min="0"
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Description (optional)</label>
+              <input
+                className="mt-1 w-full border rounded-xl p-3"
+                placeholder="e.g. Salary, Bonus, Transfer"
+                value={depositDescription}
+                onChange={(e) => setDepositDescription(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Posted Date (optional backdate)</label>
+              <input
+                type="datetime-local"
+                className="mt-1 w-full border rounded-xl p-3"
+                value={depositPostedAt}
+                onChange={(e) => setDepositPostedAt(e.target.value)}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <button
+                disabled={loadingDeposit}
+                className="rounded-xl bg-pb-600 text-white px-5 py-3 font-semibold hover:bg-pb-700 disabled:opacity-60"
+              >
+                {loadingDeposit ? "Processing..." : "Deposit Funds"}
               </button>
             </div>
           </form>
@@ -495,60 +553,33 @@ export default function AdminPanel() {
               </thead>
               <tbody>
                 {loadingCustomers ? (
-                  <tr>
-                    <td className="p-3" colSpan="4">
-                      Loading...
-                    </td>
-                  </tr>
+                  <tr><td className="p-3" colSpan="4">Loading...</td></tr>
                 ) : customers.length === 0 ? (
-                  <tr>
-                    <td className="p-3" colSpan="4">
-                      No users found.
-                    </td>
-                  </tr>
+                  <tr><td className="p-3" colSpan="4">No users found.</td></tr>
                 ) : (
                   customers.map((c) => {
                     const status = String(c.status || "active").toLowerCase();
                     const isActive = status === "active";
                     const isUpdating = updatingUserId === c._id;
-
                     return (
                       <tr key={c._id} className="border-t">
                         <td className="p-3">{c.fullName || "—"}</td>
                         <td className="p-3">{c.email}</td>
-
                         <td className="p-3">
                           <div className="flex items-center gap-3">
-                            <span
-                              className={
-                                "capitalize inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold " +
-                                (isActive
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-slate-200 text-slate-700")
-                              }
-                            >
+                            <span className={"capitalize inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold " + (isActive ? "bg-green-100 text-green-700" : "bg-slate-200 text-slate-700")}>
                               {isActive ? "Active" : "Disabled"}
                             </span>
-
                             <button
                               disabled={isUpdating}
                               onClick={() => toggleUserStatus(c)}
-                              className={
-                                "rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-slate-50 disabled:opacity-60 " +
-                                (isActive
-                                  ? "border-red-200 text-red-700"
-                                  : "border-green-200 text-green-700")
-                              }
-                              title={isActive ? "Disable this user" : "Activate this user"}
+                              className={"rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-slate-50 disabled:opacity-60 " + (isActive ? "border-red-200 text-red-700" : "border-green-200 text-green-700")}
                             >
                               {isUpdating ? "Updating..." : isActive ? "Disable" : "Activate"}
                             </button>
                           </div>
                         </td>
-
-                        <td className="p-3">
-                          {c.createdAt ? new Date(c.createdAt).toLocaleString() : "-"}
-                        </td>
+                        <td className="p-3">{c.createdAt ? new Date(c.createdAt).toLocaleString() : "-"}</td>
                       </tr>
                     );
                   })
@@ -589,17 +620,9 @@ export default function AdminPanel() {
               </thead>
               <tbody>
                 {loadingAccounts ? (
-                  <tr>
-                    <td className="p-3" colSpan="5">
-                      Loading...
-                    </td>
-                  </tr>
+                  <tr><td className="p-3" colSpan="5">Loading...</td></tr>
                 ) : accounts.length === 0 ? (
-                  <tr>
-                    <td className="p-3" colSpan="5">
-                      No accounts found.
-                    </td>
-                  </tr>
+                  <tr><td className="p-3" colSpan="5">No accounts found.</td></tr>
                 ) : (
                   accounts.map((a) => (
                     <tr key={a._id} className="border-t">
@@ -641,11 +664,7 @@ export default function AdminPanel() {
               value={txSearch}
               onChange={(e) => setTxSearch(e.target.value)}
             />
-            <select
-              className="border rounded-xl p-2"
-              value={txType}
-              onChange={(e) => setTxType(e.target.value)}
-            >
+            <select className="border rounded-xl p-2" value={txType} onChange={(e) => setTxType(e.target.value)}>
               <option value="">All Types</option>
               <option value="deposit">Deposit</option>
               <option value="withdrawal">Withdrawal</option>
@@ -653,11 +672,7 @@ export default function AdminPanel() {
               <option value="wire">Wire</option>
               <option value="bill">Bill</option>
             </select>
-            <select
-              className="border rounded-xl p-2"
-              value={txDirection}
-              onChange={(e) => setTxDirection(e.target.value)}
-            >
+            <select className="border rounded-xl p-2" value={txDirection} onChange={(e) => setTxDirection(e.target.value)}>
               <option value="">All Directions</option>
               <option value="credit">Credit</option>
               <option value="debit">Debit</option>
@@ -686,17 +701,9 @@ export default function AdminPanel() {
               </thead>
               <tbody>
                 {loadingTx ? (
-                  <tr>
-                    <td className="p-3" colSpan="8">
-                      Loading...
-                    </td>
-                  </tr>
+                  <tr><td className="p-3" colSpan="8">Loading...</td></tr>
                 ) : tx.length === 0 ? (
-                  <tr>
-                    <td className="p-3" colSpan="8">
-                      No transactions found.
-                    </td>
-                  </tr>
+                  <tr><td className="p-3" colSpan="8">No transactions found.</td></tr>
                 ) : (
                   tx.map((t) => (
                     <tr key={t._id} className="border-t">
