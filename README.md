@@ -1,16 +1,73 @@
-# React + Vite
+# 🏦 Premium Bank
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> A full-stack banking web application with secure account management, transfers, and transaction history
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🎯 About
 
-## React Compiler
+Premium Bank is a full-stack banking web application built to simulate real-world online banking functionality. It features secure authentication, account management, fund transfers between accounts, and a full transaction history — demonstrating both frontend and backend development skills.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## ✨ Features
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- 🔐 Secure user authentication (login/register)
+- 💳 Account dashboard with balance overview
+- 💸 Fund transfers between accounts
+- 📊 Full transaction history
+- 🏦 Deposit and withdrawal functionality
+- 📱 Fully responsive design
+- 🎨 Custom Premium Bank branding and favicon
+
+---
+
+## ⚙️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React, JavaScript, Tailwind CSS, Vite |
+| Backend | Node.js, Express |
+| Database | PostgreSQL |
+| Auth | JWT Authentication |
+| Styling | Tailwind CSS |
+
+---
+
+## 📦 Repositories
+
+| Repo | Description |
+|---|---|
+| [premium-bank-frontend](https://github.com/osasna1/premium-bank-frontend) | React frontend (this repo) |
+| [premium-bank-backend](https://github.com/osasna1/premium-bank-backend) | Node.js + PostgreSQL backend |
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js installed
+- PostgreSQL database
+
+### Frontend Setup
+```bash
+git clone https://github.com/osasna1/premium-bank-frontend
+cd premium-bank-frontend
+npm install
+npm run dev
+```
+
+### Backend Setup
+```bash
+git clone https://github.com/osasna1/premium-bank-backend
+cd premium-bank-backend
+npm install
+npm start
+```
+
+---
+
+## 👨‍💻 Developer
+
+**Mathew Idemudia** — Full-Stack Developer & IT Support Professional
+[GitHub](https://github.com/osasna1) | [LinkedIn](https://www.linkedin.com/in/idemudia-mathew-10b3b5302/) | [id.mathew@outlook.com](mailto:id.mathew@outlook.com)
